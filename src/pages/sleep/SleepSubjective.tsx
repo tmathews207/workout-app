@@ -40,7 +40,17 @@ export default function SleepSubjective() {
       )
       if (error) throw error
     },
-    onSuccess: () => {
+    onSuccess: (_data, values) => {
+      // Write the saved fields straight into the cache instead of just
+      // invalidating: invalidate() only schedules a background refetch, and
+      // the objective screen (which reads this same query key to check
+      // subjective_completed_at) can mount and read the still-stale cached
+      // value before that refetch resolves, bouncing itself back here.
+      queryClient.setQueryData(['sleep_logs', today], (old: Record<string, unknown> | null | undefined) => ({
+        ...(old ?? { log_date: today }),
+        ...values,
+        subjective_completed_at: new Date().toISOString(),
+      }))
       queryClient.invalidateQueries({ queryKey: ['sleep_logs', today] })
       navigate('/sleep/objective')
     },
