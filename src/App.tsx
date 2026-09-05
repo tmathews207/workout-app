@@ -9,6 +9,8 @@ import NutritionLog from './pages/nutrition/NutritionLog'
 import PlanSession from './pages/sessions/PlanSession'
 import TrackSession from './pages/sessions/TrackSession'
 import ActivityLibrary from './pages/library/ActivityLibrary'
+import Progress from './pages/progress/Progress'
+import ModalityTracker from './pages/modalities/ModalityTracker'
 import Admin from './pages/admin/Admin'
 import { RequireAuth } from './components/RequireAuth'
 import { useAuth } from './lib/auth'
@@ -49,6 +51,12 @@ function Nav() {
       <NavLink to="/library" className={navLinkClass}>
         Library
       </NavLink>
+      <NavLink to="/progress" className={navLinkClass}>
+        Progress
+      </NavLink>
+      <NavLink to="/modalities" className={navLinkClass}>
+        Modalities
+      </NavLink>
       <NavLink to="/admin" className={navLinkClass}>
         Admin
       </NavLink>
@@ -80,6 +88,8 @@ export default function App() {
           <Route path="/sessions/plan" element={<RequireAuth><PlanSession /></RequireAuth>} />
           <Route path="/sessions/track" element={<RequireAuth><TrackSession /></RequireAuth>} />
           <Route path="/library" element={<RequireAuth><ActivityLibrary /></RequireAuth>} />
+          <Route path="/progress" element={<RequireAuth><Progress /></RequireAuth>} />
+          <Route path="/modalities" element={<RequireAuth><ModalityTracker /></RequireAuth>} />
           <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
         </Routes>
       </main>
