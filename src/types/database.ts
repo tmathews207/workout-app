@@ -207,6 +207,37 @@ export interface ReadinessLog {
   updated_at: string
 }
 
+export interface NutritionLog {
+  id: string
+  log_date: string
+  water_oz_1: number
+  water_oz_2: number
+  water_oz_3: number
+  milk_oz_1: number
+  milk_oz_2: number
+  fruit_1: string | null
+  fruit_2: string | null
+  fruit_3: string | null
+  fruit_4: string | null
+  vegetable_1: string | null
+  vegetable_2: string | null
+  vegetable_3: string | null
+  vegetable_4: string | null
+  multivitamin_taken: boolean
+  creatine_taken: boolean
+  coffee_caffeine_mg_1: number
+  coffee_caffeine_mg_2: number
+  coffee_caffeine_mg_3: number
+  preworkout_caffeine_mg: number
+  additional_water_oz: number
+  additional_milk_oz: number
+  additional_fruit_servings: number
+  additional_vegetable_servings: number
+  additional_caffeine_mg: number
+  created_at: string
+  updated_at: string
+}
+
 // Minimal Database shape so `createClient<Database>()` gets table name
 // completion without hand-writing full Row/Insert/Update generics yet.
 export type Database = {
@@ -231,6 +262,7 @@ export type Database = {
       sleep_logs: { Row: SleepLog; Insert: Partial<SleepLog>; Update: Partial<SleepLog> }
       weight_logs: { Row: WeightLog; Insert: Partial<WeightLog>; Update: Partial<WeightLog> }
       readiness_logs: { Row: ReadinessLog; Insert: Partial<ReadinessLog>; Update: Partial<ReadinessLog> }
+      nutrition_logs: { Row: NutritionLog; Insert: Partial<NutritionLog>; Update: Partial<NutritionLog> }
     }
   }
 }
