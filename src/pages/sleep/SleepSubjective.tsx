@@ -1,7 +1,7 @@
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
@@ -24,8 +24,26 @@ export default function SleepSubjective() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
+  const { data: existing, isLoading } = useQuery({
+    queryKey: ['sleep_logs', today],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('sleep_logs').select('*').eq('log_date', today).maybeSingle()
+      if (error) throw error
+      return data
+    },
+  })
+
   const { control, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
+    values: existing
+      ? {
+          quality: existing.quality ?? undefined,
+          noise: existing.noise ?? undefined,
+          light: existing.light ?? undefined,
+          temperature_rating: existing.temperature_rating ?? undefined,
+          humidity_rating: existing.humidity_rating ?? undefined,
+        }
+      : undefined,
   })
 
   const mutation = useMutation({
@@ -55,6 +73,8 @@ export default function SleepSubjective() {
       navigate('/sleep/objective')
     },
   })
+
+  if (isLoading) return <PageShell title="Sleep — how did it feel?">Loading…</PageShell>
 
   return (
     <PageShell

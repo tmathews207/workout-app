@@ -46,6 +46,16 @@ export default function SleepObjective() {
 
   const { register, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
+    values: log
+      ? {
+          bedtime: log.bedtime ?? '',
+          wake_time: log.wake_time ?? '',
+          total_hours_slept: log.total_hours_slept != null ? String(log.total_hours_slept) : '',
+          wearable_sleep_score: log.wearable_sleep_score != null ? String(log.wearable_sleep_score) : '',
+          temperature_f: log.temperature_f != null ? String(log.temperature_f) : '',
+          humidity_pct: log.humidity_pct != null ? String(log.humidity_pct) : '',
+        }
+      : undefined,
   })
 
   const mutation = useMutation({
