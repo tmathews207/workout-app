@@ -70,7 +70,7 @@ function StartSessionForm({ sessionId }: { sessionId: string }) {
 
   return (
     <div className="space-y-6">
-      <RatingScale max={10} label="Perceived recovery from prior workout" value={recovery} onChange={setRecovery} />
+      <RatingScale max={10} label="Perceived recovery from prior workout" scaleKey="recovery" value={recovery} onChange={setRecovery} />
 
       <div>
         <span className="mb-2 block text-sm font-medium text-slate-200">Environment</span>
@@ -200,19 +200,19 @@ function FinishSessionForm({ sessionId }: { sessionId: string }) {
         name="session_fatigue"
         control={control}
         rules={{ required: true }}
-        render={({ field }) => <RatingScale max={10} label="Session fatigue" value={field.value} onChange={field.onChange} />}
+        render={({ field }) => <RatingScale max={10} label="Session fatigue" scaleKey="session_fatigue" value={field.value} onChange={field.onChange} />}
       />
       <Controller
         name="pain_intensity"
         control={control}
         rules={{ required: true }}
-        render={({ field }) => <RatingScale max={10} label="Pain intensity" value={field.value} onChange={field.onChange} />}
+        render={({ field }) => <RatingScale max={10} label="Pain intensity" scaleKey="pain_intensity" value={field.value} onChange={field.onChange} />}
       />
       <Controller
         name="session_focus"
         control={control}
         rules={{ required: true }}
-        render={({ field }) => <RatingScale max={10} label="Session focus" value={field.value} onChange={field.onChange} />}
+        render={({ field }) => <RatingScale max={10} label="Session focus" scaleKey="session_focus" value={field.value} onChange={field.onChange} />}
       />
       <button
         type="submit"

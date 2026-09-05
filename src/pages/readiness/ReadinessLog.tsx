@@ -74,28 +74,28 @@ export default function ReadinessLog() {
           name="energy_level"
           control={control}
           render={({ field }) => (
-            <RatingScale max={10} label="Energy level" value={field.value} onChange={field.onChange} />
+            <RatingScale max={10} label="Energy level" scaleKey="energy_level" value={field.value} onChange={field.onChange} />
           )}
         />
         <Controller
           name="mental_focus"
           control={control}
           render={({ field }) => (
-            <RatingScale max={10} label="Mental focus" value={field.value} onChange={field.onChange} />
+            <RatingScale max={10} label="Mental focus" scaleKey="focus_level" value={field.value} onChange={field.onChange} />
           )}
         />
         <Controller
           name="stress_level"
           control={control}
           render={({ field }) => (
-            <RatingScale max={10} label="Stress level" value={field.value} onChange={field.onChange} />
+            <RatingScale max={10} label="Stress level" scaleKey="stress_management" value={field.value} onChange={field.onChange} />
           )}
         />
         <Controller
           name="work_life_balance"
           control={control}
           render={({ field }) => (
-            <RatingScale max={10} label="Work-life balance" value={field.value} onChange={field.onChange} />
+            <RatingScale max={10} label="Work-life balance" scaleKey="work_life_balance" value={field.value} onChange={field.onChange} />
           )}
         />
 

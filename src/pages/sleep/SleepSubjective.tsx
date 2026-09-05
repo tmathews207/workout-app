@@ -56,35 +56,35 @@ export default function SleepSubjective() {
           name="quality"
           control={control}
           render={({ field }) => (
-            <RatingScale max={10} label="Sleep quality" value={field.value} onChange={field.onChange} />
+            <RatingScale max={10} label="Sleep quality" scaleKey="sleep_quality" value={field.value} onChange={field.onChange} />
           )}
         />
         <Controller
           name="noise"
           control={control}
           render={({ field }) => (
-            <RatingScale max={5} label="Noise" value={field.value} onChange={field.onChange} />
+            <RatingScale max={5} label="Noise" scaleKey="noise" value={field.value} onChange={field.onChange} />
           )}
         />
         <Controller
           name="light"
           control={control}
           render={({ field }) => (
-            <RatingScale max={5} label="Light" value={field.value} onChange={field.onChange} />
+            <RatingScale max={5} label="Light" scaleKey="light" value={field.value} onChange={field.onChange} />
           )}
         />
         <Controller
           name="temperature_rating"
           control={control}
           render={({ field }) => (
-            <RatingScale max={5} label="Temperature" value={field.value} onChange={field.onChange} />
+            <RatingScale max={5} label="Temperature" scaleKey="temperature" value={field.value} onChange={field.onChange} />
           )}
         />
         <Controller
           name="humidity_rating"
           control={control}
           render={({ field }) => (
-            <RatingScale max={5} label="Humidity" value={field.value} onChange={field.onChange} />
+            <RatingScale max={5} label="Humidity" scaleKey="humidity" value={field.value} onChange={field.onChange} />
           )}
         />
 
