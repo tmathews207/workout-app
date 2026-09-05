@@ -10,22 +10,39 @@ const DEFAULTS: Omit<NutritionLog, 'id' | 'log_date' | 'created_at' | 'updated_a
   water_oz_1: 20,
   water_oz_2: 20,
   water_oz_3: 20,
+  water_1_taken: false,
+  water_2_taken: false,
+  water_3_taken: false,
   milk_oz_1: 20,
   milk_oz_2: 20,
+  milk_1_taken: false,
+  milk_2_taken: false,
   fruit_1: null,
   fruit_2: null,
   fruit_3: null,
   fruit_4: null,
+  fruit_1_taken: false,
+  fruit_2_taken: false,
+  fruit_3_taken: false,
+  fruit_4_taken: false,
   vegetable_1: null,
   vegetable_2: null,
   vegetable_3: null,
   vegetable_4: null,
+  vegetable_1_taken: false,
+  vegetable_2_taken: false,
+  vegetable_3_taken: false,
+  vegetable_4_taken: false,
   multivitamin_taken: false,
   creatine_taken: false,
   coffee_caffeine_mg_1: 90,
   coffee_caffeine_mg_2: 90,
   coffee_caffeine_mg_3: 90,
+  coffee_1_taken: false,
+  coffee_2_taken: false,
+  coffee_3_taken: false,
   preworkout_caffeine_mg: 200,
+  preworkout_taken: false,
   additional_water_oz: 0,
   additional_milk_oz: 0,
   additional_fruit_servings: 0,
@@ -138,14 +155,23 @@ export default function NutritionLogPage() {
 
   if (isLoading) return <PageShell title="Nutrition">Loading…</PageShell>
 
-  const waterTotal = log.water_oz_1 + log.water_oz_2 + log.water_oz_3 + log.additional_water_oz
-  const milkTotal = log.milk_oz_1 + log.milk_oz_2 + log.additional_milk_oz
-  const fruitTotal = [log.fruit_1, log.fruit_2, log.fruit_3, log.fruit_4].filter((f) => f && f.trim()).length + log.additional_fruit_servings
+  const waterTotal =
+    (log.water_1_taken ? log.water_oz_1 : 0) +
+    (log.water_2_taken ? log.water_oz_2 : 0) +
+    (log.water_3_taken ? log.water_oz_3 : 0) +
+    log.additional_water_oz
+  const milkTotal = (log.milk_1_taken ? log.milk_oz_1 : 0) + (log.milk_2_taken ? log.milk_oz_2 : 0) + log.additional_milk_oz
+  const fruitTotal =
+    [log.fruit_1_taken, log.fruit_2_taken, log.fruit_3_taken, log.fruit_4_taken].filter(Boolean).length + log.additional_fruit_servings
   const vegTotal =
-    [log.vegetable_1, log.vegetable_2, log.vegetable_3, log.vegetable_4].filter((v) => v && v.trim()).length +
+    [log.vegetable_1_taken, log.vegetable_2_taken, log.vegetable_3_taken, log.vegetable_4_taken].filter(Boolean).length +
     log.additional_vegetable_servings
   const caffeineTotal =
-    log.coffee_caffeine_mg_1 + log.coffee_caffeine_mg_2 + log.coffee_caffeine_mg_3 + log.preworkout_caffeine_mg + log.additional_caffeine_mg
+    (log.coffee_1_taken ? log.coffee_caffeine_mg_1 : 0) +
+    (log.coffee_2_taken ? log.coffee_caffeine_mg_2 : 0) +
+    (log.coffee_3_taken ? log.coffee_caffeine_mg_3 : 0) +
+    (log.preworkout_taken ? log.preworkout_caffeine_mg : 0) +
+    log.additional_caffeine_mg
 
   return (
     <PageShell title="Nutrition" description={format(new Date(), 'EEEE, MMMM d, yyyy')}>
@@ -161,10 +187,11 @@ export default function NutritionLogPage() {
         <h2 className="mb-3 text-lg font-medium text-slate-100">Water</h2>
         <TileGrid>
           {([1, 2, 3] as const).map((n) => {
-            const key = `water_oz_${n}` as const
+            const valueKey = `water_oz_${n}` as const
+            const takenKey = `water_${n}_taken` as const
             return (
-              <Tile key={n} icon="🚰">
-                <NumberStepper value={log[key]} onChange={(v) => set({ [key]: v })} />
+              <Tile key={n} icon="🚰" active={log[takenKey]} onClick={() => set({ [takenKey]: !log[takenKey] })}>
+                <NumberStepper value={log[valueKey]} onChange={(v) => set({ [valueKey]: v })} />
               </Tile>
             )
           })}
@@ -175,10 +202,11 @@ export default function NutritionLogPage() {
         <h2 className="mb-3 text-lg font-medium text-slate-100">Milk</h2>
         <TileGrid>
           {([1, 2] as const).map((n) => {
-            const key = `milk_oz_${n}` as const
+            const valueKey = `milk_oz_${n}` as const
+            const takenKey = `milk_${n}_taken` as const
             return (
-              <Tile key={n} icon="🥛">
-                <NumberStepper value={log[key]} onChange={(v) => set({ [key]: v })} />
+              <Tile key={n} icon="🥛" active={log[takenKey]} onClick={() => set({ [takenKey]: !log[takenKey] })}>
+                <NumberStepper value={log[valueKey]} onChange={(v) => set({ [valueKey]: v })} />
               </Tile>
             )
           })}
@@ -190,8 +218,9 @@ export default function NutritionLogPage() {
         <TileGrid>
           {([1, 2, 3, 4] as const).map((n) => {
             const key = `fruit_${n}` as const
+            const takenKey = `fruit_${n}_taken` as const
             return (
-              <Tile key={n} icon="🍎">
+              <Tile key={n} icon="🍎" active={log[takenKey]} onClick={() => set({ [takenKey]: !log[takenKey] })}>
                 <input
                   defaultValue={log[key] ?? ''}
                   placeholder="e.g. blueberries"
@@ -209,8 +238,9 @@ export default function NutritionLogPage() {
         <TileGrid>
           {([1, 2, 3, 4] as const).map((n) => {
             const key = `vegetable_${n}` as const
+            const takenKey = `vegetable_${n}_taken` as const
             return (
-              <Tile key={n} icon="🥬">
+              <Tile key={n} icon="🥬" active={log[takenKey]} onClick={() => set({ [takenKey]: !log[takenKey] })}>
                 <input
                   defaultValue={log[key] ?? ''}
                   placeholder="e.g. broccoli"
@@ -239,14 +269,15 @@ export default function NutritionLogPage() {
         <h2 className="mb-3 text-lg font-medium text-slate-100">Caffeine</h2>
         <TileGrid>
           {([1, 2, 3] as const).map((n) => {
-            const key = `coffee_caffeine_mg_${n}` as const
+            const valueKey = `coffee_caffeine_mg_${n}` as const
+            const takenKey = `coffee_${n}_taken` as const
             return (
-              <Tile key={n} icon="☕">
-                <NumberStepper value={log[key]} onChange={(v) => set({ [key]: v })} step={5} />
+              <Tile key={n} icon="☕" active={log[takenKey]} onClick={() => set({ [takenKey]: !log[takenKey] })}>
+                <NumberStepper value={log[valueKey]} onChange={(v) => set({ [valueKey]: v })} step={5} />
               </Tile>
             )
           })}
-          <Tile icon="💪">
+          <Tile icon="💪" active={log.preworkout_taken} onClick={() => set({ preworkout_taken: !log.preworkout_taken })}>
             <NumberStepper value={log.preworkout_caffeine_mg} onChange={(v) => set({ preworkout_caffeine_mg: v })} step={5} />
           </Tile>
         </TileGrid>

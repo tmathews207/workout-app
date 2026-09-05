@@ -213,22 +213,39 @@ export interface NutritionLog {
   water_oz_1: number
   water_oz_2: number
   water_oz_3: number
+  water_1_taken: boolean
+  water_2_taken: boolean
+  water_3_taken: boolean
   milk_oz_1: number
   milk_oz_2: number
+  milk_1_taken: boolean
+  milk_2_taken: boolean
   fruit_1: string | null
   fruit_2: string | null
   fruit_3: string | null
   fruit_4: string | null
+  fruit_1_taken: boolean
+  fruit_2_taken: boolean
+  fruit_3_taken: boolean
+  fruit_4_taken: boolean
   vegetable_1: string | null
   vegetable_2: string | null
   vegetable_3: string | null
   vegetable_4: string | null
+  vegetable_1_taken: boolean
+  vegetable_2_taken: boolean
+  vegetable_3_taken: boolean
+  vegetable_4_taken: boolean
   multivitamin_taken: boolean
   creatine_taken: boolean
   coffee_caffeine_mg_1: number
   coffee_caffeine_mg_2: number
   coffee_caffeine_mg_3: number
+  coffee_1_taken: boolean
+  coffee_2_taken: boolean
+  coffee_3_taken: boolean
   preworkout_caffeine_mg: number
+  preworkout_taken: boolean
   additional_water_oz: number
   additional_milk_oz: number
   additional_fruit_servings: number
