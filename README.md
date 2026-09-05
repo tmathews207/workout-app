@@ -58,8 +58,9 @@ public view.
 2. Repo → Settings → Secrets and variables → Actions → add
    `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` (same values as your
    `.env.local`).
-3. Push to `main` — `.github/workflows/deploy.yml` builds and deploys
-   automatically. The site is served from `/workout-app/`, which is why
+3. Push to `claude/workout-app-tech-stack-xgw3h2` (this repo's default
+   branch — there's no separate `main`) — `.github/workflows/deploy.yml`
+   builds and deploys automatically. The site is served from `/workout-app/`, which is why
    `vite.config.ts` sets `base: '/workout-app/'` — update that (and the PWA
    manifest's `start_url`/`scope` in the same file) if the repo is ever
    renamed.

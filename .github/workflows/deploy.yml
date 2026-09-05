@@ -2,7 +2,7 @@ name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [claude/workout-app-tech-stack-xgw3h2]
   workflow_dispatch:
 
 permissions:
