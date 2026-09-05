@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
-import { DetailsFields, TextField, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
+import { LibraryDetailsFields, TextField, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
 import type { Activity, ActivityType, Modality } from '../../types/database'
 
 const ACTIVITY_TYPES: { value: ActivityType; label: string }[] = [
@@ -142,7 +142,7 @@ export default function ActivityLibrary() {
 
           <TextField label="Name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
 
-          <DetailsFields
+          <LibraryDetailsFields
             type={form.type}
             details={form.details}
             setDetail={(k, v) => setForm({ ...form, details: { ...form.details, [k]: v } })}

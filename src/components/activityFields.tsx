@@ -77,8 +77,9 @@ export function RadioField({
   )
 }
 
-// Renders the fields specific to an activity's `type` into `details`.
-export function DetailsFields({
+// Fields that describe the exercise itself and don't change set-to-set or
+// session-to-session — shown on the library entry only.
+export function LibraryDetailsFields({
   type,
   details,
   setDetail,
@@ -97,6 +98,55 @@ export function DetailsFields({
       onChange={(v) => setDetail('laterality', v)}
     />
   )
+  const rangeOfMotion = <TextField label="Range of motion" value={str('range_of_motion')} onChange={(v) => setDetail('range_of_motion', v)} />
+  const accommodatingResistance = (
+    <TextField
+      label="Accommodating resistance"
+      value={str('accommodating_resistance')}
+      onChange={(v) => setDetail('accommodating_resistance', v)}
+    />
+  )
+
+  switch (type) {
+    case 'stretch':
+      return laterality
+    case 'mobility':
+      return (
+        <>
+          {laterality}
+          {rangeOfMotion}
+        </>
+      )
+    case 'strength':
+    case 'power':
+      return (
+        <>
+          {laterality}
+          {rangeOfMotion}
+          {accommodatingResistance}
+        </>
+      )
+    case 'anaerobic':
+    case 'aerobic':
+      return null
+  }
+}
+
+// Fields that vary set-to-set and session-to-session — shown when planning
+// or tracking a set, not on the library entry. "+ Add set" copies these
+// forward from the previous set rather than from the activity's defaults,
+// since there's no one "right" target for a library exercise.
+export function SetDetailsFields({
+  type,
+  details,
+  setDetail,
+}: {
+  type: ActivityType
+  details: Details
+  setDetail: (k: string, v: string | boolean) => void
+}) {
+  const str = (k: string) => (details[k] as string) ?? ''
+
   const setKind = (
     <RadioField label="Warm-up or work set" options={['warm-up', 'work']} value={str('set_kind')} onChange={(v) => setDetail('set_kind', v)} />
   )
@@ -123,21 +173,9 @@ export function DetailsFields({
 
   switch (type) {
     case 'stretch':
-      return (
-        <>
-          {laterality}
-          <div className="grid grid-cols-2 gap-3">
-            <MMSSField label="Duration" value={str('duration_display')} onChange={(v) => setDetail('duration_display', v)} />
-            {restField}
-          </div>
-          <NumberField label="Repeat count" value={str('repeat_count')} onChange={(v) => setDetail('repeat_count', v)} />
-        </>
-      )
     case 'mobility':
       return (
         <>
-          {laterality}
-          <TextField label="Range of motion" value={str('range_of_motion')} onChange={(v) => setDetail('range_of_motion', v)} />
           <div className="grid grid-cols-2 gap-3">
             <MMSSField label="Duration" value={str('duration_display')} onChange={(v) => setDetail('duration_display', v)} />
             {restField}
@@ -149,8 +187,6 @@ export function DetailsFields({
       return (
         <>
           {setKind}
-          {laterality}
-          <TextField label="Range of motion" value={str('range_of_motion')} onChange={(v) => setDetail('range_of_motion', v)} />
           <div className="grid grid-cols-2 gap-3">
             <NumberField
               label="Target bar speed (m/s)"
@@ -165,11 +201,6 @@ export function DetailsFields({
             <NumberField label="Target reps (max)" value={str('target_reps_max')} onChange={(v) => setDetail('target_reps_max', v)} />
           </div>
           {weightWithBodyweight}
-          <TextField
-            label="Accommodating resistance"
-            value={str('accommodating_resistance')}
-            onChange={(v) => setDetail('accommodating_resistance', v)}
-          />
           {rpeOrRir}
           {restField}
         </>
@@ -178,8 +209,6 @@ export function DetailsFields({
       return (
         <>
           {setKind}
-          {laterality}
-          <TextField label="Range of motion" value={str('range_of_motion')} onChange={(v) => setDetail('range_of_motion', v)} />
           <div className="grid grid-cols-3 gap-3">
             <NumberField label="Target height (in)" value={str('target_height_in')} onChange={(v) => setDetail('target_height_in', v)} />
             <NumberField label="Target speed (m/s)" step="0.1" value={str('target_speed_mps')} onChange={(v) => setDetail('target_speed_mps', v)} />
@@ -190,11 +219,6 @@ export function DetailsFields({
             <NumberField label="Target reps (max)" value={str('target_reps_max')} onChange={(v) => setDetail('target_reps_max', v)} />
           </div>
           {weightWithBodyweight}
-          <TextField
-            label="Accommodating resistance"
-            value={str('accommodating_resistance')}
-            onChange={(v) => setDetail('accommodating_resistance', v)}
-          />
           {rpeOrRir}
           {restField}
         </>

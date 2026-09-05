@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
-import { DetailsFields, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
+import { SetDetailsFields, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
 import type { Activity, ActivityType, Phase, PlannedSet, SessionActivity, SessionPhase } from '../../types/database'
 
 const PHASES: Phase[] = ['preparatory', 'training', 'recovery']
@@ -84,7 +84,7 @@ function SetEditor({
         </div>
       </div>
       <div className="space-y-2">
-        <DetailsFields
+        <SetDetailsFields
           type={activityType}
           details={details}
           setDetail={(k, v) => {
@@ -255,7 +255,10 @@ export default function PlanSession() {
                           addSetMutation.mutate({
                             sessionActivityId: sa.id,
                             setNumber: sa.planned_sets.length + 1,
-                            details: sa.activities.details as Record<string, unknown>,
+                            // Copy the previous set's targets forward (they're usually the same or
+                            // close to it) rather than the activity's defaults — a library entry no
+                            // longer carries set-specific targets, so the first set starts blank.
+                            details: (sa.planned_sets[sa.planned_sets.length - 1]?.details ?? {}) as Record<string, unknown>,
                           })
                         }
                         className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm text-slate-200"

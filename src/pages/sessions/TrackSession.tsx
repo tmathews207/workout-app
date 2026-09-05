@@ -5,7 +5,7 @@ import { format } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
 import { RatingScale } from '../../components/RatingScale'
-import { DetailsFields, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
+import { SetDetailsFields, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
 import type { ActualSet, Activity, ActivityType, Environment, Phase, PlannedSet, Session, SessionActivity, SessionPhase } from '../../types/database'
 
 const PHASE_LABEL: Record<Phase, string> = { preparatory: 'Preparatory', training: 'Training', recovery: 'Recovery' }
@@ -173,7 +173,7 @@ function ActualSetEditor({
           {mutation.isPending ? 'Saving…' : actual ? 'Update' : 'Save'}
         </button>
       </div>
-      <DetailsFields type={activityType} details={details} setDetail={(k, v) => setDetails((d) => ({ ...d, [k]: v }))} />
+      <SetDetailsFields type={activityType} details={details} setDetail={(k, v) => setDetails((d) => ({ ...d, [k]: v }))} />
     </div>
   )
 }
