@@ -127,12 +127,14 @@ function StartSessionForm({ sessionId }: { sessionId: string }) {
 function ActualSetEditor({
   sessionActivityId,
   activityType,
+  hasMachineSetting,
   setNumber,
   planned,
   actual,
 }: {
   sessionActivityId: string
   activityType: ActivityType
+  hasMachineSetting?: boolean
   setNumber: number
   planned: PlannedSet
   actual: ActualSet | undefined
@@ -173,7 +175,12 @@ function ActualSetEditor({
           {mutation.isPending ? 'Saving…' : actual ? 'Update' : 'Save'}
         </button>
       </div>
-      <SetDetailsFields type={activityType} details={details} setDetail={(k, v) => setDetails((d) => ({ ...d, [k]: v }))} />
+      <SetDetailsFields
+        type={activityType}
+        details={details}
+        hasMachineSetting={hasMachineSetting}
+        setDetail={(k, v) => setDetails((d) => ({ ...d, [k]: v }))}
+      />
     </div>
   )
 }
@@ -265,6 +272,7 @@ export default function TrackSession() {
                         key={planned.id}
                         sessionActivityId={sa.id}
                         activityType={sa.activities.type}
+                        hasMachineSetting={Boolean((sa.activities.details as Record<string, unknown>)?.has_machine_setting)}
                         setNumber={planned.set_number}
                         planned={planned}
                         actual={sa.actual_sets.find((a) => a.set_number === planned.set_number)}

@@ -50,11 +50,13 @@ function useActivityOptions() {
 function SetEditor({
   set,
   activityType,
+  hasMachineSetting,
   onSave,
   onDelete,
 }: {
   set: PlannedSet
   activityType: ActivityType
+  hasMachineSetting?: boolean
   onSave: (details: Details) => void
   onDelete: () => void
 }) {
@@ -87,6 +89,7 @@ function SetEditor({
         <SetDetailsFields
           type={activityType}
           details={details}
+          hasMachineSetting={hasMachineSetting}
           setDetail={(k, v) => {
             setDetails((d) => ({ ...d, [k]: v }))
             setDirty(true)
@@ -243,6 +246,7 @@ export default function PlanSession() {
                             key={set.id}
                             set={set}
                             activityType={sa.activities.type}
+                            hasMachineSetting={Boolean((sa.activities.details as Record<string, unknown>)?.has_machine_setting)}
                             onSave={(details) => updateSetMutation.mutate({ id: set.id, details })}
                             onDelete={() => deleteSetMutation.mutate(set.id)}
                           />

@@ -106,15 +106,33 @@ export function LibraryDetailsFields({
       onChange={(v) => setDetail('accommodating_resistance', v)}
     />
   )
+  // Most exercises don't have one (e.g. a rowing machine's resistance level);
+  // when checked, a "Machine setting" number field shows up on each set.
+  const machineSetting = (
+    <label className="flex items-center gap-2">
+      <input
+        type="checkbox"
+        checked={Boolean(details.has_machine_setting)}
+        onChange={(e) => setDetail('has_machine_setting', e.target.checked)}
+      />
+      <span className="text-sm text-slate-200">Has a machine setting (e.g. resistance level)</span>
+    </label>
+  )
 
   switch (type) {
     case 'stretch':
-      return laterality
+      return (
+        <>
+          {laterality}
+          {machineSetting}
+        </>
+      )
     case 'mobility':
       return (
         <>
           {laterality}
           {rangeOfMotion}
+          {machineSetting}
         </>
       )
     case 'strength':
@@ -124,11 +142,12 @@ export function LibraryDetailsFields({
           {laterality}
           {rangeOfMotion}
           {accommodatingResistance}
+          {machineSetting}
         </>
       )
     case 'anaerobic':
     case 'aerobic':
-      return null
+      return machineSetting
   }
 }
 
@@ -140,10 +159,12 @@ export function SetDetailsFields({
   type,
   details,
   setDetail,
+  hasMachineSetting,
 }: {
   type: ActivityType
   details: Details
   setDetail: (k: string, v: string | boolean) => void
+  hasMachineSetting?: boolean
 }) {
   const str = (k: string) => (details[k] as string) ?? ''
 
@@ -151,6 +172,9 @@ export function SetDetailsFields({
     <RadioField label="Warm-up or work set" options={['warm-up', 'work']} value={str('set_kind')} onChange={(v) => setDetail('set_kind', v)} />
   )
   const restField = <MMSSField label="Rest period" value={str('rest_display')} onChange={(v) => setDetail('rest_display', v)} />
+  const machineSettingField = hasMachineSetting ? (
+    <NumberField label="Machine setting" value={str('machine_setting')} onChange={(v) => setDetail('machine_setting', v)} />
+  ) : null
   const rpeOrRir = (
     <div className="grid grid-cols-2 gap-3">
       <NumberField label="Target RPE" step="0.1" value={str('target_rpe')} onChange={(v) => setDetail('target_rpe', v)} />
@@ -181,6 +205,7 @@ export function SetDetailsFields({
             {restField}
           </div>
           <NumberField label="Repeat count" value={str('repeat_count')} onChange={(v) => setDetail('repeat_count', v)} />
+          {machineSettingField}
         </>
       )
     case 'strength':
@@ -203,6 +228,7 @@ export function SetDetailsFields({
           {weightWithBodyweight}
           {rpeOrRir}
           {restField}
+          {machineSettingField}
         </>
       )
     case 'power':
@@ -221,6 +247,7 @@ export function SetDetailsFields({
           {weightWithBodyweight}
           {rpeOrRir}
           {restField}
+          {machineSettingField}
         </>
       )
     case 'anaerobic':
@@ -242,24 +269,32 @@ export function SetDetailsFields({
           <NumberField label="Target weight (lbs)" step="0.5" value={str('target_weight_lbs')} onChange={(v) => setDetail('target_weight_lbs', v)} />
           {rpeOrRir}
           <div className="grid grid-cols-2 gap-3">
-            <TextField label="Target pace" value={str('target_pace')} onChange={(v) => setDetail('target_pace', v)} />
+            <MMSSField label="Target pace" value={str('target_pace_display')} onChange={(v) => setDetail('target_pace_display', v)} />
             {restField}
           </div>
+          {machineSettingField}
         </>
       )
     case 'aerobic':
       return (
         <>
           <div className="grid grid-cols-2 gap-3">
-            <NumberField label="Distance (miles)" step="0.01" value={str('distance_miles')} onChange={(v) => setDetail('distance_miles', v)} />
-            <TextField label="Target pace (mm:ss / mile)" value={str('target_pace')} onChange={(v) => setDetail('target_pace', v)} />
+            <NumberField label="Distance" step="0.01" value={str('distance_value')} onChange={(v) => setDetail('distance_value', v)} />
+            <RadioField
+              label="Unit"
+              options={['miles', 'meters']}
+              value={str('distance_unit') || 'miles'}
+              onChange={(v) => setDetail('distance_unit', v)}
+            />
           </div>
+          <MMSSField label="Target pace" value={str('target_pace_display')} onChange={(v) => setDetail('target_pace_display', v)} />
           <NumberField label="Weight (lbs)" step="0.5" value={str('weight_lbs')} onChange={(v) => setDetail('weight_lbs', v)} />
           <div className="grid grid-cols-2 gap-3">
             <NumberField label="Target heart rate" value={str('target_heart_rate')} onChange={(v) => setDetail('target_heart_rate', v)} />
             <NumberField label="Target cadence" value={str('target_cadence')} onChange={(v) => setDetail('target_cadence', v)} />
           </div>
           {restField}
+          {machineSettingField}
         </>
       )
   }
@@ -273,6 +308,7 @@ export function detailsToPayload(details: Details): Details {
     ['duration_display', 'duration_sec'],
     ['rest_display', 'rest_sec'],
     ['target_duration_display', 'target_duration_sec'],
+    ['target_pace_display', 'target_pace_sec'],
   ]) {
     if (displayKey in payload) {
       const seconds = parseMMSS(String(payload[displayKey] ?? ''))
@@ -280,7 +316,7 @@ export function detailsToPayload(details: Details): Details {
       if (seconds !== undefined) payload[targetKey] = seconds
     }
   }
-  const nonNumericKeys = ['tempo', 'range_of_motion', 'accommodating_resistance', 'target_pace', 'laterality', 'set_kind']
+  const nonNumericKeys = ['tempo', 'range_of_motion', 'accommodating_resistance', 'laterality', 'set_kind', 'distance_unit']
   for (const key of Object.keys(payload)) {
     const v = payload[key]
     if (typeof v === 'string' && v.trim() === '') delete payload[key]
@@ -296,5 +332,6 @@ export function payloadToDisplay(details: Record<string, unknown>): Details {
   if ('duration_sec' in details) display.duration_display = formatMMSS(details.duration_sec as number)
   if ('rest_sec' in details) display.rest_display = formatMMSS(details.rest_sec as number)
   if ('target_duration_sec' in details) display.target_duration_display = formatMMSS(details.target_duration_sec as number)
+  if ('target_pace_sec' in details) display.target_pace_display = formatMMSS(details.target_pace_sec as number)
   return display
 }

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
+import { caffeineTotal, fruitTotal, milkTotal, vegetableTotal, waterTotal } from '../../lib/nutritionTotals'
 import type { NutritionLog } from '../../types/database'
 
 const today = format(new Date(), 'yyyy-MM-dd')
@@ -155,32 +156,14 @@ export default function NutritionLogPage() {
 
   if (isLoading) return <PageShell title="Nutrition">Loading…</PageShell>
 
-  const waterTotal =
-    (log.water_1_taken ? log.water_oz_1 : 0) +
-    (log.water_2_taken ? log.water_oz_2 : 0) +
-    (log.water_3_taken ? log.water_oz_3 : 0) +
-    log.additional_water_oz
-  const milkTotal = (log.milk_1_taken ? log.milk_oz_1 : 0) + (log.milk_2_taken ? log.milk_oz_2 : 0) + log.additional_milk_oz
-  const fruitTotal =
-    [log.fruit_1_taken, log.fruit_2_taken, log.fruit_3_taken, log.fruit_4_taken].filter(Boolean).length + log.additional_fruit_servings
-  const vegTotal =
-    [log.vegetable_1_taken, log.vegetable_2_taken, log.vegetable_3_taken, log.vegetable_4_taken].filter(Boolean).length +
-    log.additional_vegetable_servings
-  const caffeineTotal =
-    (log.coffee_1_taken ? log.coffee_caffeine_mg_1 : 0) +
-    (log.coffee_2_taken ? log.coffee_caffeine_mg_2 : 0) +
-    (log.coffee_3_taken ? log.coffee_caffeine_mg_3 : 0) +
-    (log.preworkout_taken ? log.preworkout_caffeine_mg : 0) +
-    log.additional_caffeine_mg
-
   return (
     <PageShell title="Nutrition" description={format(new Date(), 'EEEE, MMMM d, yyyy')}>
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
-        <SummaryStat label="Water" value={`${waterTotal} / 60 oz`} />
-        <SummaryStat label="Milk" value={`${milkTotal} / 40 oz`} />
-        <SummaryStat label="Fruit" value={`${fruitTotal} / 4`} />
-        <SummaryStat label="Veg" value={`${vegTotal} / 4`} />
-        <SummaryStat label="Caffeine" value={`${caffeineTotal} / 300 mg`} warn={caffeineTotal > 300} />
+        <SummaryStat label="Water" value={`${waterTotal(log)} / 60 oz`} />
+        <SummaryStat label="Milk" value={`${milkTotal(log)} / 40 oz`} />
+        <SummaryStat label="Fruit" value={`${fruitTotal(log)} / 4`} />
+        <SummaryStat label="Veg" value={`${vegetableTotal(log)} / 4`} />
+        <SummaryStat label="Caffeine" value={`${caffeineTotal(log)} / 300 mg`} warn={caffeineTotal(log) > 300} />
       </div>
 
       <section className="mb-8">

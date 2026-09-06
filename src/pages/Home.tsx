@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { PageShell } from '../components/PageShell'
 import { formatHHMM } from '../lib/format'
+import { waterTotal } from '../lib/nutritionTotals'
 import type { NutritionLog } from '../types/database'
 
 const today = format(new Date(), 'yyyy-MM-dd')
@@ -77,14 +78,7 @@ export default function Home() {
 
   const nutritionSummary = (() => {
     if (nutritionLoading) return 'Loading…'
-    const log = nutritionLog
-    const waterTotal = log
-      ? (log.water_1_taken ? log.water_oz_1 : 0) +
-        (log.water_2_taken ? log.water_oz_2 : 0) +
-        (log.water_3_taken ? log.water_oz_3 : 0) +
-        log.additional_water_oz
-      : 0
-    return `Water: ${waterTotal} / 60 oz`
+    return `Water: ${waterTotal(nutritionLog)} / 60 oz`
   })()
 
   return (
