@@ -34,7 +34,7 @@ function useActivities() {
       const { data, error } = await supabase
         .from('activities')
         .select('*, activity_modalities(modality_id)')
-        .order('type')
+        .order('sort_order')
         .order('name')
       if (error) throw error
       return data as ActivityWithModalities[]
@@ -67,7 +67,13 @@ export default function ActivityLibrary() {
         const { error } = await supabase.from('activities').update(payload).eq('id', activityId)
         if (error) throw error
       } else {
-        const { data, error } = await supabase.from('activities').insert(payload).select('id').single()
+        // New activities go to the end of the display order by default.
+        const nextSortOrder = Math.max(0, ...(activities ?? []).map((a) => a.sort_order)) + 1
+        const { data, error } = await supabase
+          .from('activities')
+          .insert({ ...payload, sort_order: nextSortOrder })
+          .select('id')
+          .single()
         if (error) throw error
         activityId = data.id
       }
@@ -89,6 +95,17 @@ export default function ActivityLibrary() {
     mutationFn: async (id: string) => {
       const { error } = await supabase.from('activities').delete().eq('id', id)
       if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['activities'] }),
+  })
+
+  // Swaps sort_order between two adjacent (in the current list) activities.
+  const moveMutation = useMutation({
+    mutationFn: async ({ a, b }: { a: ActivityWithModalities; b: ActivityWithModalities }) => {
+      const { error: e1 } = await supabase.from('activities').update({ sort_order: b.sort_order }).eq('id', a.id)
+      if (e1) throw e1
+      const { error: e2 } = await supabase.from('activities').update({ sort_order: a.sort_order }).eq('id', b.id)
+      if (e2) throw e2
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['activities'] }),
   })
@@ -200,12 +217,38 @@ export default function ActivityLibrary() {
 
       {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
 
+      <p className="mb-2 text-xs text-slate-500">
+        Order here controls where each exercise shows up in dropdowns elsewhere (Plan Session, Progress) — put what you
+        do most often near the top.
+      </p>
       <div className="space-y-2">
-        {(activities ?? []).map((a) => (
+        {(activities ?? []).map((a, i) => (
           <div key={a.id} className="flex items-center justify-between rounded-lg border border-slate-800 p-3">
-            <div>
-              <div className="font-medium">{a.name}</div>
-              <div className="text-xs uppercase tracking-wide text-slate-500">{a.type}</div>
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  disabled={i === 0}
+                  onClick={() => moveMutation.mutate({ a, b: activities![i - 1] })}
+                  className="text-slate-400 hover:text-slate-200 disabled:opacity-30"
+                  aria-label="Move up"
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  disabled={i === activities!.length - 1}
+                  onClick={() => moveMutation.mutate({ a, b: activities![i + 1] })}
+                  className="text-slate-400 hover:text-slate-200 disabled:opacity-30"
+                  aria-label="Move down"
+                >
+                  ▼
+                </button>
+              </div>
+              <div>
+                <div className="font-medium">{a.name}</div>
+                <div className="text-xs uppercase tracking-wide text-slate-500">{a.type}</div>
+              </div>
             </div>
             <div className="flex gap-2">
               <button type="button" onClick={() => startEdit(a)} className="rounded-md bg-slate-800 px-3 py-1.5 text-sm text-slate-200">

@@ -111,6 +111,7 @@ export interface Activity {
   name: string
   details: ActivityDetails
   notes: string | null
+  sort_order: number
   created_at: string
   updated_at: string
 }

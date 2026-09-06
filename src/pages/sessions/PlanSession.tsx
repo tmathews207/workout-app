@@ -40,7 +40,7 @@ function useActivityOptions() {
   return useQuery({
     queryKey: ['activities'],
     queryFn: async () => {
-      const { data, error } = await supabase.from('activities').select('*').order('type').order('name')
+      const { data, error } = await supabase.from('activities').select('*').order('sort_order').order('name')
       if (error) throw error
       return data as Activity[]
     },
