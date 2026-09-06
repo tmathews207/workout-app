@@ -7,6 +7,7 @@ import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
+import { formatHHMM, parseHHMM } from '../../lib/format'
 
 // Numeric fields are kept as strings at the form layer (native number
 // inputs hand back strings) and converted right before the write — avoids
@@ -14,7 +15,10 @@ import { PageShell } from '../../components/PageShell'
 const schema = z.object({
   bedtime: z.string().min(1, 'Required'),
   wake_time: z.string().min(1, 'Required'),
-  total_hours_slept: z.string().min(1, 'Required'),
+  total_hours_slept: z
+    .string()
+    .min(1, 'Required')
+    .refine((v) => parseHHMM(v) !== undefined, 'Use hh:mm format, e.g. 7:30'),
   wearable_sleep_score: z.string().optional(),
   temperature_f: z.string().optional(),
   humidity_pct: z.string().optional(),
@@ -50,7 +54,7 @@ export default function SleepObjective() {
       ? {
           bedtime: log.bedtime ?? '',
           wake_time: log.wake_time ?? '',
-          total_hours_slept: log.total_hours_slept != null ? String(log.total_hours_slept) : '',
+          total_hours_slept: formatHHMM(log.total_hours_slept),
           wearable_sleep_score: log.wearable_sleep_score != null ? String(log.wearable_sleep_score) : '',
           temperature_f: log.temperature_f != null ? String(log.temperature_f) : '',
           humidity_pct: log.humidity_pct != null ? String(log.humidity_pct) : '',
@@ -65,7 +69,7 @@ export default function SleepObjective() {
         .update({
           bedtime: values.bedtime,
           wake_time: values.wake_time,
-          total_hours_slept: Number(values.total_hours_slept),
+          total_hours_slept: parseHHMM(values.total_hours_slept),
           wearable_sleep_score: values.wearable_sleep_score ? Number(values.wearable_sleep_score) : null,
           temperature_f: values.temperature_f ? Number(values.temperature_f) : null,
           humidity_pct: values.humidity_pct ? Number(values.humidity_pct) : null,
@@ -94,13 +98,15 @@ export default function SleepObjective() {
           <input type="time" {...register('wake_time')} className="w-full rounded-md bg-slate-800 px-3 py-2" />
         </label>
         <label className="block">
-          <span className="mb-1 block text-sm font-medium text-slate-200">Total hours slept</span>
+          <span className="mb-1 block text-sm font-medium text-slate-200">Total sleep (hh:mm)</span>
           <input
-            type="number"
-            step="0.1"
+            placeholder="7:30"
             {...register('total_hours_slept')}
             className="w-full rounded-md bg-slate-800 px-3 py-2"
           />
+          {formState.errors.total_hours_slept && (
+            <p className="mt-1 text-xs text-red-400">{formState.errors.total_hours_slept.message}</p>
+          )}
         </label>
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-slate-200">Wearable sleep score</span>

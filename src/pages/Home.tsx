@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { PageShell } from '../components/PageShell'
+import { formatHHMM } from '../lib/format'
 import type { NutritionLog } from '../types/database'
 
 const today = format(new Date(), 'yyyy-MM-dd')
@@ -63,7 +64,7 @@ export default function Home() {
     if (sleepLog.total_hours_slept == null) return 'Subjective done — objective data pending'
     const bed = formatTime12(sleepLog.bedtime)
     const wake = formatTime12(sleepLog.wake_time)
-    return `Bed ${bed ?? '—'} · Up ${wake ?? '—'} · ${sleepLog.total_hours_slept} hrs`
+    return `Bed ${bed ?? '—'} · Up ${wake ?? '—'} · ${formatHHMM(sleepLog.total_hours_slept)} sleep`
   })()
 
   const weightSummary = (() => {
