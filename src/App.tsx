@@ -28,7 +28,10 @@ function Nav() {
   if (!session) return null
 
   return (
-    <nav className="sticky top-0 z-10 flex items-center gap-1 overflow-x-auto border-b border-slate-800 bg-slate-950/95 px-2 py-2 backdrop-blur">
+    <nav
+      className="sticky top-0 z-10 flex items-center gap-1 overflow-x-auto border-b border-slate-800 bg-slate-950/95 px-2 py-2 backdrop-blur"
+      style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.5rem)' }}
+    >
       <NavLink to="/" end className={navLinkClass}>
         Today
       </NavLink>
@@ -84,7 +87,7 @@ export default function App() {
     <div className="flex min-h-screen flex-col">
       <Nav />
 
-      <main className="flex-1">
+      <main className="flex-1" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<RequireAuth><Home /></RequireAuth>} />
