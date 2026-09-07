@@ -160,13 +160,21 @@ export function SetDetailsFields({
   details,
   setDetail,
   hasMachineSetting,
+  mode = 'plan',
 }: {
   type: ActivityType
   details: Details
   setDetail: (k: string, v: string | boolean) => void
   hasMachineSetting?: boolean
+  // 'plan' labels these as targets to hit; 'actual' labels them as what
+  // happened, since the tracking screen reuses this same field set.
+  mode?: 'plan' | 'actual'
 }) {
   const str = (k: string) => (details[k] as string) ?? ''
+  // Every "target"-prefixed label below goes through this, so tracking a
+  // set says "Weight (lbs)" / "RPE" instead of "Target weight (lbs)" /
+  // "Target RPE" — the number is the same field either way.
+  const L = (label: string) => (mode === 'actual' ? label.replace(/^Target /, '') : label)
 
   const setKind = (
     <RadioField label="Warm-up or work set" options={['warm-up', 'work']} value={str('set_kind')} onChange={(v) => setDetail('set_kind', v)} />
@@ -177,23 +185,39 @@ export function SetDetailsFields({
   ) : null
   const rpeOrRir = (
     <div className="grid grid-cols-2 gap-3">
-      <NumberField label="Target RPE" step="0.1" value={str('target_rpe')} onChange={(v) => setDetail('target_rpe', v)} />
-      <NumberField label="Target RIR" value={str('target_rir')} onChange={(v) => setDetail('target_rir', v)} />
+      <NumberField label={L('Target RPE')} step="0.1" value={str('target_rpe')} onChange={(v) => setDetail('target_rpe', v)} />
+      <NumberField label={L('Target RIR')} value={str('target_rir')} onChange={(v) => setDetail('target_rir', v)} />
     </div>
   )
   const weightWithBodyweight = (
     <div className="grid grid-cols-2 gap-3">
-      <NumberField label="Target weight (lbs)" step="0.5" value={str('target_weight_lbs')} onChange={(v) => setDetail('target_weight_lbs', v)} />
+      <NumberField
+        label={mode === 'actual' ? 'Weight (lbs)' : 'Target weight (lbs)'}
+        step="0.5"
+        value={str('target_weight_lbs')}
+        onChange={(v) => setDetail('target_weight_lbs', v)}
+      />
       <label className="flex items-center gap-2 self-end pb-2">
         <input
           type="checkbox"
           checked={Boolean(details.is_bodyweight_default)}
           onChange={(e) => setDetail('is_bodyweight_default', e.target.checked)}
         />
-        <span className="text-sm text-slate-200">Bodyweight by default</span>
+        <span className="text-sm text-slate-200">{mode === 'actual' ? 'Bodyweight' : 'Bodyweight by default'}</span>
       </label>
     </div>
   )
+  // A single set has one rep count, not a range — only planning (where a
+  // range like "4-6" is a real target) needs both fields.
+  const repsFields =
+    mode === 'actual' ? (
+      <NumberField label="Reps" value={str('target_reps_max')} onChange={(v) => setDetail('target_reps_max', v)} />
+    ) : (
+      <div className="grid grid-cols-2 gap-3">
+        <NumberField label="Target reps (min)" value={str('target_reps_min')} onChange={(v) => setDetail('target_reps_min', v)} />
+        <NumberField label="Target reps (max)" value={str('target_reps_max')} onChange={(v) => setDetail('target_reps_max', v)} />
+      </div>
+    )
 
   switch (type) {
     case 'stretch':
@@ -214,17 +238,14 @@ export function SetDetailsFields({
           {setKind}
           <div className="grid grid-cols-2 gap-3">
             <NumberField
-              label="Target bar speed (m/s)"
+              label={L('Target bar speed (m/s)')}
               step="0.1"
               value={str('target_bar_speed_mps')}
               onChange={(v) => setDetail('target_bar_speed_mps', v)}
             />
             <TextField label="Tempo (#-#-#-#)" value={str('tempo')} onChange={(v) => setDetail('tempo', v)} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <NumberField label="Target reps (min)" value={str('target_reps_min')} onChange={(v) => setDetail('target_reps_min', v)} />
-            <NumberField label="Target reps (max)" value={str('target_reps_max')} onChange={(v) => setDetail('target_reps_max', v)} />
-          </div>
+          {repsFields}
           {weightWithBodyweight}
           {rpeOrRir}
           {restField}
@@ -236,14 +257,16 @@ export function SetDetailsFields({
         <>
           {setKind}
           <div className="grid grid-cols-3 gap-3">
-            <NumberField label="Target height (in)" value={str('target_height_in')} onChange={(v) => setDetail('target_height_in', v)} />
-            <NumberField label="Target speed (m/s)" step="0.1" value={str('target_speed_mps')} onChange={(v) => setDetail('target_speed_mps', v)} />
-            <NumberField label="Target distance (m)" value={str('target_distance_m')} onChange={(v) => setDetail('target_distance_m', v)} />
+            <NumberField label={L('Target height (in)')} value={str('target_height_in')} onChange={(v) => setDetail('target_height_in', v)} />
+            <NumberField
+              label={L('Target speed (m/s)')}
+              step="0.1"
+              value={str('target_speed_mps')}
+              onChange={(v) => setDetail('target_speed_mps', v)}
+            />
+            <NumberField label={L('Target distance (m)')} value={str('target_distance_m')} onChange={(v) => setDetail('target_distance_m', v)} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <NumberField label="Target reps (min)" value={str('target_reps_min')} onChange={(v) => setDetail('target_reps_min', v)} />
-            <NumberField label="Target reps (max)" value={str('target_reps_max')} onChange={(v) => setDetail('target_reps_max', v)} />
-          </div>
+          {repsFields}
           {weightWithBodyweight}
           {rpeOrRir}
           {restField}
@@ -254,22 +277,24 @@ export function SetDetailsFields({
       return (
         <>
           {setKind}
+          {repsFields}
           <div className="grid grid-cols-2 gap-3">
-            <NumberField label="Target reps (min)" value={str('target_reps_min')} onChange={(v) => setDetail('target_reps_min', v)} />
-            <NumberField label="Target reps (max)" value={str('target_reps_max')} onChange={(v) => setDetail('target_reps_max', v)} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <NumberField label="Target distance (m)" value={str('target_distance_m')} onChange={(v) => setDetail('target_distance_m', v)} />
+            <NumberField label={L('Target distance (m)')} value={str('target_distance_m')} onChange={(v) => setDetail('target_distance_m', v)} />
             <MMSSField
-              label="Target duration"
+              label={L('Target duration')}
               value={str('target_duration_display')}
               onChange={(v) => setDetail('target_duration_display', v)}
             />
           </div>
-          <NumberField label="Target weight (lbs)" step="0.5" value={str('target_weight_lbs')} onChange={(v) => setDetail('target_weight_lbs', v)} />
+          <NumberField
+            label={mode === 'actual' ? 'Weight (lbs)' : 'Target weight (lbs)'}
+            step="0.5"
+            value={str('target_weight_lbs')}
+            onChange={(v) => setDetail('target_weight_lbs', v)}
+          />
           {rpeOrRir}
           <div className="grid grid-cols-2 gap-3">
-            <MMSSField label="Target pace" value={str('target_pace_display')} onChange={(v) => setDetail('target_pace_display', v)} />
+            <MMSSField label={L('Target pace')} value={str('target_pace_display')} onChange={(v) => setDetail('target_pace_display', v)} />
             {restField}
           </div>
           {machineSettingField}
@@ -287,11 +312,11 @@ export function SetDetailsFields({
               onChange={(v) => setDetail('distance_unit', v)}
             />
           </div>
-          <MMSSField label="Target pace" value={str('target_pace_display')} onChange={(v) => setDetail('target_pace_display', v)} />
+          <MMSSField label={L('Target pace')} value={str('target_pace_display')} onChange={(v) => setDetail('target_pace_display', v)} />
           <NumberField label="Weight (lbs)" step="0.5" value={str('weight_lbs')} onChange={(v) => setDetail('weight_lbs', v)} />
           <div className="grid grid-cols-2 gap-3">
-            <NumberField label="Target heart rate" value={str('target_heart_rate')} onChange={(v) => setDetail('target_heart_rate', v)} />
-            <NumberField label="Target cadence" value={str('target_cadence')} onChange={(v) => setDetail('target_cadence', v)} />
+            <NumberField label={L('Target heart rate')} value={str('target_heart_rate')} onChange={(v) => setDetail('target_heart_rate', v)} />
+            <NumberField label={L('Target cadence')} value={str('target_cadence')} onChange={(v) => setDetail('target_cadence', v)} />
           </div>
           {restField}
           {machineSettingField}

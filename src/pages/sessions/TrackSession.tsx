@@ -179,6 +179,7 @@ function ActualSetEditor({
         type={activityType}
         details={details}
         hasMachineSetting={hasMachineSetting}
+        mode="actual"
         setDetail={(k, v) => setDetails((d) => ({ ...d, [k]: v }))}
       />
     </div>
