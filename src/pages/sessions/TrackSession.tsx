@@ -5,6 +5,9 @@ import { format } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
 import { RatingScale } from '../../components/RatingScale'
+import { DateNav } from '../../components/DateNav'
+import { MoveSessionDate } from '../../components/MoveSessionDate'
+import { useLogDate } from '../../lib/useLogDate'
 import { SetDetailsFields, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
 import type { ActualSet, Activity, ActivityType, Environment, Phase, PlannedSet, Session, SessionActivity, SessionPhase } from '../../types/database'
 
@@ -14,18 +17,16 @@ type SessionActivityFull = SessionActivity & { activities: Activity; planned_set
 type SessionPhaseFull = SessionPhase & { session_activities: SessionActivityFull[] }
 type SessionFull = Session & { session_phases: SessionPhaseFull[] }
 
-const today = format(new Date(), 'yyyy-MM-dd')
-
-function useTodaySession() {
+function useSessionForDate(date: string) {
   return useQuery({
-    queryKey: ['track_session', today],
+    queryKey: ['track_session', date],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('sessions')
         .select(
           `*, session_phases(*, session_activities(*, activities(*), planned_sets(*), actual_sets(*)))`,
         )
-        .eq('session_date', today)
+        .eq('session_date', date)
         .order('sort_order', { referencedTable: 'session_phases' })
         .order('sort_order', { referencedTable: 'session_phases.session_activities' })
         .order('set_number', { referencedTable: 'session_phases.session_activities.planned_sets' })
@@ -63,7 +64,7 @@ function StartSessionForm({ sessionId }: { sessionId: string }) {
         .eq('id', sessionId)
       if (error) throw error
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['track_session', today] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['track_session'] }),
   })
 
   const valid = recovery !== undefined && environment !== '' && startTime
@@ -157,7 +158,7 @@ function ActualSetEditor({
       )
       if (error) throw error
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['track_session', today] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['track_session'] }),
   })
 
   return (
@@ -195,7 +196,7 @@ function FinishSessionForm({ sessionId }: { sessionId: string }) {
       const { error } = await supabase.from('sessions').update({ ...values, status: 'completed' }).eq('id', sessionId)
       if (error) throw error
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['track_session', today] }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['track_session'] }),
   })
 
   return (
@@ -234,28 +235,48 @@ function FinishSessionForm({ sessionId }: { sessionId: string }) {
 }
 
 export default function TrackSession() {
-  const { data: session, isLoading } = useTodaySession()
+  const { date, setDate, today } = useLogDate()
+  const { data: session, isLoading } = useSessionForDate(date)
 
-  if (isLoading) return <PageShell title="Track today's session">Loading…</PageShell>
+  if (isLoading) return <PageShell title="Track session">Loading…</PageShell>
 
   if (!session) {
     return (
-      <PageShell title="Track today's session" description={today}>
-        <p className="text-sm text-slate-400">No plan exists for today yet — plan it first from a laptop.</p>
+      <PageShell title="Track session" description={date}>
+        <DateNav date={date} today={today} onChange={setDate} />
+        <p className="text-sm text-slate-400">
+          No plan exists for {date === today ? 'today' : 'this date'} yet — plan it first from a laptop.
+        </p>
       </PageShell>
     )
   }
 
   if (session.status === 'planned') {
     return (
-      <PageShell title="Track today's session" description={today}>
+      <PageShell title="Track session" description={date}>
+        <DateNav date={date} today={today} onChange={setDate} />
+        <MoveSessionDate
+          sessionId={session.id}
+          currentDate={date}
+          defaultTarget={today}
+          queryKeyPrefixes={['plan_session', 'track_session']}
+          onMoved={setDate}
+        />
         <StartSessionForm sessionId={session.id} />
       </PageShell>
     )
   }
 
   return (
-    <PageShell title="Track today's session" description={today}>
+    <PageShell title="Track session" description={date}>
+      <DateNav date={date} today={today} onChange={setDate} />
+      <MoveSessionDate
+        sessionId={session.id}
+        currentDate={date}
+        defaultTarget={today}
+        queryKeyPrefixes={['plan_session', 'track_session']}
+        onMoved={setDate}
+      />
       <div className="space-y-8">
         {session.session_phases.map((phase) => (
           <div key={phase.id}>

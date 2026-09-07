@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
+import { MoveSessionDate } from '../../components/MoveSessionDate'
 import { SetDetailsFields, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
 import type { Activity, ActivityType, Phase, PlannedSet, SessionActivity, SessionPhase } from '../../types/database'
 
@@ -210,6 +211,14 @@ export default function PlanSession() {
 
       {session && (
         <div className="space-y-8">
+          <MoveSessionDate
+            sessionId={session.id}
+            currentDate={date}
+            defaultTarget={format(new Date(), 'yyyy-MM-dd')}
+            queryKeyPrefixes={['plan_session', 'track_session']}
+            onMoved={setDate}
+          />
+
           {PHASES.map((phase) => {
             const phaseRow = session.session_phases.find((p) => p.phase === phase)
             const phaseId = phaseRow?.id
