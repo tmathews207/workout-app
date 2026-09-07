@@ -10,6 +10,7 @@ import PlanSession from './pages/sessions/PlanSession'
 import TrackSession from './pages/sessions/TrackSession'
 import ActivityLibrary from './pages/library/ActivityLibrary'
 import SleepTrends from './pages/sleep/SleepTrends'
+import WeightTrends from './pages/weight/WeightTrends'
 import NutritionTrends from './pages/nutrition/NutritionTrends'
 import Progress from './pages/progress/Progress'
 import ModalityTracker from './pages/modalities/ModalityTracker'
@@ -59,6 +60,9 @@ function Nav() {
       <NavLink to="/sleep/trends" className={navLinkClass}>
         Sleep Trends
       </NavLink>
+      <NavLink to="/weight/trends" className={navLinkClass}>
+        Weight Trends
+      </NavLink>
       <NavLink to="/nutrition/trends" className={navLinkClass}>
         Nutrition Trends
       </NavLink>
@@ -100,6 +104,7 @@ export default function App() {
           <Route path="/sessions/track" element={<RequireAuth><TrackSession /></RequireAuth>} />
           <Route path="/library" element={<RequireAuth><ActivityLibrary /></RequireAuth>} />
           <Route path="/sleep/trends" element={<RequireAuth><SleepTrends /></RequireAuth>} />
+          <Route path="/weight/trends" element={<RequireAuth><WeightTrends /></RequireAuth>} />
           <Route path="/nutrition/trends" element={<RequireAuth><NutritionTrends /></RequireAuth>} />
           <Route path="/progress" element={<RequireAuth><Progress /></RequireAuth>} />
           <Route path="/modalities" element={<RequireAuth><ModalityTracker /></RequireAuth>} />
