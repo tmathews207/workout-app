@@ -2,10 +2,11 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
 import { RatingScale } from '../../components/RatingScale'
+import { DateNav } from '../../components/DateNav'
+import { useLogDate } from '../../lib/useLogDate'
 
 const schema = z.object({
   energy_level: z.number().min(1).max(10),
@@ -21,15 +22,14 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-const today = format(new Date(), 'yyyy-MM-dd')
-
 export default function ReadinessLog() {
   const queryClient = useQueryClient()
+  const { date, setDate, today } = useLogDate()
 
   const { data: existing, isLoading } = useQuery({
-    queryKey: ['readiness_logs', today],
+    queryKey: ['readiness_logs', date],
     queryFn: async () => {
-      const { data, error } = await supabase.from('readiness_logs').select('*').eq('log_date', today).maybeSingle()
+      const { data, error } = await supabase.from('readiness_logs').select('*').eq('log_date', date).maybeSingle()
       if (error) throw error
       return data
     },
@@ -56,11 +56,11 @@ export default function ReadinessLog() {
     mutationFn: async (values: FormValues) => {
       const { error } = await supabase
         .from('readiness_logs')
-        .upsert({ log_date: today, ...values }, { onConflict: 'log_date' })
+        .upsert({ log_date: date, ...values }, { onConflict: 'log_date' })
       if (error) throw error
     },
     onSuccess: (_data, values) => {
-      queryClient.invalidateQueries({ queryKey: ['readiness_logs', today] })
+      queryClient.invalidateQueries({ queryKey: ['readiness_logs', date] })
       reset(values)
     },
   })
@@ -69,6 +69,8 @@ export default function ReadinessLog() {
 
   return (
     <PageShell title="Mental readiness" description="End-of-day ratings, notes, reading & listening.">
+      <DateNav date={date} today={today} onChange={setDate} />
+
       <form className="space-y-6" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
         <Controller
           name="energy_level"

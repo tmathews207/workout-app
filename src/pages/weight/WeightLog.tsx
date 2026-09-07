@@ -5,6 +5,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { format } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
+import { DateNav } from '../../components/DateNav'
+import { useLogDate } from '../../lib/useLogDate'
 
 const schema = z.object({
   period: z.enum(['morning', 'evening']),
@@ -14,19 +16,19 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-const today = format(new Date(), 'yyyy-MM-dd')
 const nowTime = format(new Date(), 'HH:mm')
 
 export default function WeightLog() {
   const queryClient = useQueryClient()
+  const { date, setDate, today } = useLogDate()
 
   const { data: logs } = useQuery({
-    queryKey: ['weight_logs', today],
+    queryKey: ['weight_logs', date],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('weight_logs')
         .select('*')
-        .eq('log_date', today)
+        .eq('log_date', date)
         .order('period')
       if (error) throw error
       return data ?? []
@@ -42,7 +44,7 @@ export default function WeightLog() {
     mutationFn: async (values: FormValues) => {
       const { error } = await supabase.from('weight_logs').upsert(
         {
-          log_date: today,
+          log_date: date,
           period: values.period,
           weight_lbs: Number(values.weight_lbs),
           logged_at: values.logged_at,
@@ -52,7 +54,7 @@ export default function WeightLog() {
       if (error) throw error
     },
     onSuccess: (_data, values) => {
-      queryClient.invalidateQueries({ queryKey: ['weight_logs', today] })
+      queryClient.invalidateQueries({ queryKey: ['weight_logs', date] })
       reset({ period: values.period === 'morning' ? 'evening' : 'morning', weight_lbs: '', logged_at: nowTime })
     },
   })
@@ -62,6 +64,8 @@ export default function WeightLog() {
 
   return (
     <PageShell title="Weight" description="Morning and evening weigh-ins.">
+      <DateNav date={date} today={today} onChange={setDate} />
+
       <div className="mb-6 grid grid-cols-2 gap-3">
         <div className="rounded-lg border border-slate-800 p-3">
           <div className="text-xs uppercase tracking-wide text-slate-500">Morning</div>

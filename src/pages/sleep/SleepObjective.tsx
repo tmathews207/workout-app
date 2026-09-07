@@ -3,11 +3,12 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
 import { formatHHMM, parseHHMM } from '../../lib/format'
+import { DateNav } from '../../components/DateNav'
+import { useLogDate } from '../../lib/useLogDate'
 
 // Numeric fields are kept as strings at the form layer (native number
 // inputs hand back strings) and converted right before the write — avoids
@@ -26,16 +27,15 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-const today = format(new Date(), 'yyyy-MM-dd')
-
 export default function SleepObjective() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { date, setDate, today } = useLogDate()
 
   const { data: log, isLoading } = useQuery({
-    queryKey: ['sleep_logs', today],
+    queryKey: ['sleep_logs', date],
     queryFn: async () => {
-      const { data, error } = await supabase.from('sleep_logs').select('*').eq('log_date', today).maybeSingle()
+      const { data, error } = await supabase.from('sleep_logs').select('*').eq('log_date', date).maybeSingle()
       if (error) throw error
       return data
     },
@@ -44,9 +44,9 @@ export default function SleepObjective() {
   // Subjective screen must be completed first.
   useEffect(() => {
     if (!isLoading && !log?.subjective_completed_at) {
-      navigate('/sleep', { replace: true })
+      navigate(date === today ? '/sleep' : `/sleep?date=${date}`, { replace: true })
     }
-  }, [isLoading, log, navigate])
+  }, [isLoading, log, navigate, date, today])
 
   const { register, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -75,11 +75,11 @@ export default function SleepObjective() {
           humidity_pct: values.humidity_pct ? Number(values.humidity_pct) : null,
           objective_completed_at: new Date().toISOString(),
         })
-        .eq('log_date', today)
+        .eq('log_date', date)
       if (error) throw error
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sleep_logs', today] })
+      queryClient.invalidateQueries({ queryKey: ['sleep_logs', date] })
       navigate('/')
     },
   })
@@ -88,6 +88,8 @@ export default function SleepObjective() {
 
   return (
     <PageShell title="Sleep — the details" description="Bed time, wake time, and wearable data.">
+      <DateNav date={date} today={today} onChange={setDate} />
+
       <form className="space-y-4" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-slate-200">Went to bed</span>

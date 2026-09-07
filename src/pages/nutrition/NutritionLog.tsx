@@ -1,11 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
+import { DateNav } from '../../components/DateNav'
+import { useLogDate } from '../../lib/useLogDate'
 import { caffeineTotal, fruitTotal, milkTotal, vegetableTotal, waterTotal } from '../../lib/nutritionTotals'
 import type { NutritionLog } from '../../types/database'
-
-const today = format(new Date(), 'yyyy-MM-dd')
 
 const DEFAULTS: Omit<NutritionLog, 'id' | 'log_date' | 'created_at' | 'updated_at'> = {
   water_oz_1: 20,
@@ -51,11 +51,11 @@ const DEFAULTS: Omit<NutritionLog, 'id' | 'log_date' | 'created_at' | 'updated_a
   additional_caffeine_mg: 0,
 }
 
-function useNutritionLog() {
+function useNutritionLog(date: string) {
   return useQuery({
-    queryKey: ['nutrition_logs', today],
+    queryKey: ['nutrition_logs', date],
     queryFn: async () => {
-      const { data, error } = await supabase.from('nutrition_logs').select('*').eq('log_date', today).maybeSingle()
+      const { data, error } = await supabase.from('nutrition_logs').select('*').eq('log_date', date).maybeSingle()
       if (error) throw error
       return data as NutritionLog | null
     },
@@ -136,17 +136,18 @@ function TileGrid({ children }: { children: React.ReactNode }) {
 
 export default function NutritionLogPage() {
   const queryClient = useQueryClient()
-  const { data, isLoading } = useNutritionLog()
+  const { date, setDate, today } = useLogDate()
+  const { data, isLoading } = useNutritionLog(date)
   const log = { ...DEFAULTS, ...(data ?? {}) }
 
   const updateMutation = useMutation({
     mutationFn: async (patch: Partial<NutritionLog>) => {
-      const { error } = await supabase.from('nutrition_logs').upsert({ log_date: today, ...patch }, { onConflict: 'log_date' })
+      const { error } = await supabase.from('nutrition_logs').upsert({ log_date: date, ...patch }, { onConflict: 'log_date' })
       if (error) throw error
     },
     onSuccess: (_data, patch) => {
-      queryClient.setQueryData(['nutrition_logs', today], (old: NutritionLog | null | undefined) => ({
-        ...(old ?? { log_date: today }),
+      queryClient.setQueryData(['nutrition_logs', date], (old: NutritionLog | null | undefined) => ({
+        ...(old ?? { log_date: date }),
         ...patch,
       }))
     },
@@ -157,7 +158,9 @@ export default function NutritionLogPage() {
   if (isLoading) return <PageShell title="Nutrition">Loading…</PageShell>
 
   return (
-    <PageShell title="Nutrition" description={format(new Date(), 'EEEE, MMMM d, yyyy')}>
+    <PageShell title="Nutrition" description={format(parseISO(date), 'EEEE, MMMM d, yyyy')}>
+      <DateNav date={date} today={today} onChange={setDate} />
+
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-5">
         <SummaryStat label="Water" value={`${waterTotal(log)} / 60 oz`} />
         <SummaryStat label="Milk" value={`${milkTotal(log)} / 40 oz`} />

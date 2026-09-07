@@ -2,11 +2,13 @@ import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
 import { RatingScale } from '../../components/RatingScale'
+import { DateNav } from '../../components/DateNav'
+import { useLogDate } from '../../lib/useLogDate'
 
 const schema = z.object({
   quality: z.number().min(1).max(10),
@@ -18,16 +20,15 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-const today = format(new Date(), 'yyyy-MM-dd')
-
 export default function SleepSubjective() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { date, setDate, today } = useLogDate()
 
   const { data: existing, isLoading } = useQuery({
-    queryKey: ['sleep_logs', today],
+    queryKey: ['sleep_logs', date],
     queryFn: async () => {
-      const { data, error } = await supabase.from('sleep_logs').select('*').eq('log_date', today).maybeSingle()
+      const { data, error } = await supabase.from('sleep_logs').select('*').eq('log_date', date).maybeSingle()
       if (error) throw error
       return data
     },
@@ -50,7 +51,7 @@ export default function SleepSubjective() {
     mutationFn: async (values: FormValues) => {
       const { error } = await supabase.from('sleep_logs').upsert(
         {
-          log_date: today,
+          log_date: date,
           ...values,
           subjective_completed_at: new Date().toISOString(),
         },
@@ -64,13 +65,13 @@ export default function SleepSubjective() {
       // the objective screen (which reads this same query key to check
       // subjective_completed_at) can mount and read the still-stale cached
       // value before that refetch resolves, bouncing itself back here.
-      queryClient.setQueryData(['sleep_logs', today], (old: Record<string, unknown> | null | undefined) => ({
-        ...(old ?? { log_date: today }),
+      queryClient.setQueryData(['sleep_logs', date], (old: Record<string, unknown> | null | undefined) => ({
+        ...(old ?? { log_date: date }),
         ...values,
         subjective_completed_at: new Date().toISOString(),
       }))
-      queryClient.invalidateQueries({ queryKey: ['sleep_logs', today] })
-      navigate('/sleep/objective')
+      queryClient.invalidateQueries({ queryKey: ['sleep_logs', date] })
+      navigate(date === today ? '/sleep/objective' : `/sleep/objective?date=${date}`)
     },
   })
 
@@ -79,8 +80,10 @@ export default function SleepSubjective() {
   return (
     <PageShell
       title="Sleep — how did it feel?"
-      description={`For the night ending this morning, ${format(new Date(), 'MMMM d, yyyy')}. Objective data comes next.`}
+      description={`For the night ending ${format(parseISO(date), 'MMMM d, yyyy')}. Objective data comes next.`}
     >
+      <DateNav date={date} today={today} onChange={setDate} />
+
       <form className="space-y-6" onSubmit={handleSubmit((values) => mutation.mutate(values))}>
         <Controller
           name="quality"
