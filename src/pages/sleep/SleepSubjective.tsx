@@ -20,6 +20,14 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
+const BLANK: FormValues = {
+  quality: undefined as unknown as number,
+  noise: undefined as unknown as number,
+  light: undefined as unknown as number,
+  temperature_rating: undefined as unknown as number,
+  humidity_rating: undefined as unknown as number,
+}
+
 export default function SleepSubjective() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -44,7 +52,7 @@ export default function SleepSubjective() {
           temperature_rating: existing.temperature_rating ?? undefined,
           humidity_rating: existing.humidity_rating ?? undefined,
         }
-      : undefined,
+      : BLANK,
   })
 
   const mutation = useMutation({

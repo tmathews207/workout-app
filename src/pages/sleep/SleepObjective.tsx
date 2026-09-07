@@ -27,6 +27,15 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
+const BLANK: FormValues = {
+  bedtime: '',
+  wake_time: '',
+  total_hours_slept: '',
+  wearable_sleep_score: '',
+  temperature_f: '',
+  humidity_pct: '',
+}
+
 export default function SleepObjective() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -59,7 +68,7 @@ export default function SleepObjective() {
           temperature_f: log.temperature_f != null ? String(log.temperature_f) : '',
           humidity_pct: log.humidity_pct != null ? String(log.humidity_pct) : '',
         }
-      : undefined,
+      : BLANK,
   })
 
   const mutation = useMutation({

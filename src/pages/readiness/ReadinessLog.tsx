@@ -22,6 +22,18 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
+const BLANK: FormValues = {
+  energy_level: undefined as unknown as number,
+  mental_focus: undefined as unknown as number,
+  stress_level: undefined as unknown as number,
+  work_life_balance: undefined as unknown as number,
+  notes: '',
+  reading: '',
+  reading_notes: '',
+  listening: '',
+  listening_notes: '',
+}
+
 export default function ReadinessLog() {
   const queryClient = useQueryClient()
   const { date, setDate, today } = useLogDate()
@@ -49,7 +61,7 @@ export default function ReadinessLog() {
           listening: existing.listening ?? '',
           listening_notes: existing.listening_notes ?? '',
         }
-      : undefined,
+      : BLANK,
   })
 
   const mutation = useMutation({
