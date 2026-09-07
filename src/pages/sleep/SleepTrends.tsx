@@ -1,20 +1,20 @@
 import { useQuery } from '@tanstack/react-query'
-import { format, subDays } from 'date-fns'
+import { format } from 'date-fns'
 import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
+import { DateWindowNav } from '../../components/DateWindowNav'
+import { useDateWindow } from '../../lib/useDateWindow'
 
-const DAYS = 14
-
-function useSleepTrend() {
+function useSleepTrend(startStr: string, endStr: string) {
   return useQuery({
-    queryKey: ['sleep_trend', DAYS],
+    queryKey: ['sleep_trend', startStr, endStr],
     queryFn: async () => {
-      const since = format(subDays(new Date(), DAYS - 1), 'yyyy-MM-dd')
       const { data, error } = await supabase
         .from('sleep_logs')
         .select('log_date, quality, wearable_sleep_score')
-        .gte('log_date', since)
+        .gte('log_date', startStr)
+        .lte('log_date', endStr)
         .order('log_date')
       if (error) throw error
       return (data ?? []) as { log_date: string; quality: number | null; wearable_sleep_score: number | null }[]
@@ -23,7 +23,8 @@ function useSleepTrend() {
 }
 
 export default function SleepTrends() {
-  const { data, isLoading } = useSleepTrend()
+  const window = useDateWindow()
+  const { data, isLoading } = useSleepTrend(window.startStr, window.endStr)
 
   const chartData = (data ?? []).map((row) => ({
     label: format(new Date(row.log_date), 'M/d'),
@@ -32,7 +33,14 @@ export default function SleepTrends() {
   }))
 
   return (
-    <PageShell title="Sleep Trends" description={`Subjective quality (×10) vs. wearable sleep score, last ${DAYS} days.`}>
+    <PageShell title="Sleep Trends" description="Subjective quality (×10) vs. wearable sleep score.">
+      <DateWindowNav
+        startDate={window.startDate}
+        endDate={window.endDate}
+        isCurrent={window.isCurrent}
+        onPrev={window.prev}
+        onNext={window.next}
+      />
       {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
       {!isLoading && chartData.length === 0 && <p className="text-sm text-slate-400">No sleep entries yet.</p>}
       {chartData.length > 0 && (

@@ -1,20 +1,20 @@
 import { useQuery } from '@tanstack/react-query'
-import { format, subDays } from 'date-fns'
+import { format } from 'date-fns'
 import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
+import { DateWindowNav } from '../../components/DateWindowNav'
+import { useDateWindow } from '../../lib/useDateWindow'
 
-const DAYS = 14
-
-function useWeightTrend() {
+function useWeightTrend(startStr: string, endStr: string) {
   return useQuery({
-    queryKey: ['weight_trend', DAYS],
+    queryKey: ['weight_trend', startStr, endStr],
     queryFn: async () => {
-      const since = format(subDays(new Date(), DAYS - 1), 'yyyy-MM-dd')
       const { data, error } = await supabase
         .from('weight_logs')
         .select('log_date, period, weight_lbs')
-        .gte('log_date', since)
+        .gte('log_date', startStr)
+        .lte('log_date', endStr)
         .order('log_date')
       if (error) throw error
       return (data ?? []) as { log_date: string; period: 'morning' | 'evening'; weight_lbs: number }[]
@@ -23,7 +23,8 @@ function useWeightTrend() {
 }
 
 export default function WeightTrends() {
-  const { data, isLoading } = useWeightTrend()
+  const window = useDateWindow()
+  const { data, isLoading } = useWeightTrend(window.startStr, window.endStr)
 
   const byDate = new Map<string, { label: string; morning?: number; evening?: number }>()
   for (const row of data ?? []) {
@@ -38,7 +39,14 @@ export default function WeightTrends() {
   const max = weights.length ? Math.max(...weights) : 0
 
   return (
-    <PageShell title="Weight Trends" description={`Morning vs. evening weigh-ins, last ${DAYS} days.`}>
+    <PageShell title="Weight Trends" description="Morning vs. evening weigh-ins.">
+      <DateWindowNav
+        startDate={window.startDate}
+        endDate={window.endDate}
+        isCurrent={window.isCurrent}
+        onPrev={window.prev}
+        onNext={window.next}
+      />
       {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
       {!isLoading && chartData.length === 0 && <p className="text-sm text-slate-400">No weight entries yet.</p>}
       {chartData.length > 0 && (

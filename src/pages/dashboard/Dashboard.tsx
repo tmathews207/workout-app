@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { addWeeks, endOfWeek, format, startOfWeek, subDays, subWeeks } from 'date-fns'
+import { addWeeks, endOfWeek, format, startOfWeek, subWeeks } from 'date-fns'
 import {
   Bar,
   BarChart,
@@ -16,8 +16,10 @@ import {
 import { supabase } from '../../lib/supabase'
 import type { Activity, ActivityType, Modality, NutritionLog } from '../../types/database'
 import { caffeineTotal, fruitTotal, milkTotal, vegetableTotal, waterTotal } from '../../lib/nutritionTotals'
+import { readinessAverage } from '../../lib/readinessTotals'
+import { useDateWindow } from '../../lib/useDateWindow'
+import { DateWindowNav } from '../../components/DateWindowNav'
 
-const DAYS = 14
 const GOAL_DAYS = 2
 const CHARTABLE_TYPES: ActivityType[] = ['strength', 'power', 'anaerobic']
 
@@ -46,15 +48,15 @@ function Card({ title, subtitle, children }: { title: string; subtitle?: string;
   )
 }
 
-function useSleepTrend() {
+function useSleepTrend(startStr: string, endStr: string) {
   return useQuery({
-    queryKey: ['sleep_trend', DAYS],
+    queryKey: ['sleep_trend', startStr, endStr],
     queryFn: async () => {
-      const since = format(subDays(new Date(), DAYS - 1), 'yyyy-MM-dd')
       const { data, error } = await supabase
         .from('sleep_logs')
         .select('log_date, quality, wearable_sleep_score')
-        .gte('log_date', since)
+        .gte('log_date', startStr)
+        .lte('log_date', endStr)
         .order('log_date')
       if (error) throw error
       return (data ?? []) as { log_date: string; quality: number | null; wearable_sleep_score: number | null }[]
@@ -62,15 +64,15 @@ function useSleepTrend() {
   })
 }
 
-function useWeightTrend() {
+function useWeightTrend(startStr: string, endStr: string) {
   return useQuery({
-    queryKey: ['weight_trend', DAYS],
+    queryKey: ['weight_trend', startStr, endStr],
     queryFn: async () => {
-      const since = format(subDays(new Date(), DAYS - 1), 'yyyy-MM-dd')
       const { data, error } = await supabase
         .from('weight_logs')
         .select('log_date, period, weight_lbs')
-        .gte('log_date', since)
+        .gte('log_date', startStr)
+        .lte('log_date', endStr)
         .order('log_date')
       if (error) throw error
       return (data ?? []) as { log_date: string; period: 'morning' | 'evening'; weight_lbs: number }[]
@@ -78,14 +80,40 @@ function useWeightTrend() {
   })
 }
 
-function useNutritionTrend() {
+function useNutritionTrend(startStr: string, endStr: string) {
   return useQuery({
-    queryKey: ['nutrition_trend', DAYS],
+    queryKey: ['nutrition_trend', startStr, endStr],
     queryFn: async () => {
-      const since = format(subDays(new Date(), DAYS - 1), 'yyyy-MM-dd')
-      const { data, error } = await supabase.from('nutrition_logs').select('*').gte('log_date', since).order('log_date')
+      const { data, error } = await supabase
+        .from('nutrition_logs')
+        .select('*')
+        .gte('log_date', startStr)
+        .lte('log_date', endStr)
+        .order('log_date')
       if (error) throw error
       return (data ?? []) as NutritionLog[]
+    },
+  })
+}
+
+function useReadinessTrend(startStr: string, endStr: string) {
+  return useQuery({
+    queryKey: ['readiness_trend', startStr, endStr],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('readiness_logs')
+        .select('log_date, energy_level, mental_focus, stress_level, work_life_balance')
+        .gte('log_date', startStr)
+        .lte('log_date', endStr)
+        .order('log_date')
+      if (error) throw error
+      return (data ?? []) as {
+        log_date: string
+        energy_level: number | null
+        mental_focus: number | null
+        stress_level: number | null
+        work_life_balance: number | null
+      }[]
     },
   })
 }
@@ -209,6 +237,8 @@ function useWorkSetHistory(activityId: string | null) {
 }
 
 export default function Dashboard() {
+  const window = useDateWindow()
+
   const [weekAnchor, setWeekAnchor] = useState(new Date())
   const weekStartDate = startOfWeek(weekAnchor, { weekStartsOn: 0 })
   const weekEndDate = endOfWeek(weekAnchor, { weekStartsOn: 0 })
@@ -217,9 +247,10 @@ export default function Dashboard() {
 
   const [activityId, setActivityId] = useState<string | null>(null)
 
-  const { data: sleepData } = useSleepTrend()
-  const { data: weightData } = useWeightTrend()
-  const { data: nutritionData } = useNutritionTrend()
+  const { data: sleepData } = useSleepTrend(window.startStr, window.endStr)
+  const { data: weightData } = useWeightTrend(window.startStr, window.endStr)
+  const { data: nutritionData } = useNutritionTrend(window.startStr, window.endStr)
+  const { data: readinessData } = useReadinessTrend(window.startStr, window.endStr)
   const { data: modalities } = useModalities()
   const { data: daysByModality } = useWeekModalityDays(weekStart, weekEnd)
   const { data: activities } = useChartableActivities()
@@ -251,6 +282,10 @@ export default function Dashboard() {
     caffeine: caffeineTotal(log),
   }))
 
+  const readinessChartData = (readinessData ?? [])
+    .map((row) => ({ label: format(new Date(row.log_date), 'M/d'), average: readinessAverage(row) }))
+    .filter((row) => row.average != null)
+
   const modalityChartData = (modalities ?? []).map((m) => ({
     modality: m.label,
     days: daysByModality?.get(m.id)?.size ?? 0,
@@ -258,14 +293,20 @@ export default function Dashboard() {
 
   const progressChartData = (workSetPoints ?? []).map((p) => ({ ...p, label: format(new Date(p.date), 'M/d') }))
 
-  const rangeLabel = `${format(subDays(new Date(), DAYS - 1), 'MMM d')} – ${format(new Date(), 'MMM d, yyyy')}`
-
   return (
     <div className="mx-auto max-w-6xl px-6 py-8 print:max-w-none">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-100">Training Dashboard</h1>
-        <p className="mt-1 text-sm text-slate-400">Last {DAYS} days · {rangeLabel}</p>
+        <p className="mt-1 text-sm text-slate-400">Sleep, weight, nutrition &amp; readiness — 14-day window.</p>
       </div>
+
+      <DateWindowNav
+        startDate={window.startDate}
+        endDate={window.endDate}
+        isCurrent={window.isCurrent}
+        onPrev={window.prev}
+        onNext={window.next}
+      />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card title="Sleep" subtitle="Subjective quality (×10) vs. wearable score">
@@ -300,6 +341,23 @@ export default function Dashboard() {
                   <Legend wrapperStyle={LEGEND_STYLE} />
                   <Bar dataKey="morning" name="Morning" fill="#38bdf8" radius={[2, 2, 0, 0]} />
                   <Bar dataKey="evening" name="Evening" fill="#a78bfa" radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </Card>
+
+        <Card title="Mental Readiness" subtitle="Average of energy, focus, stress, and work-life balance (0–10)">
+          {readinessChartData.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="h-64 w-full">
+              <ResponsiveContainer>
+                <BarChart data={readinessChartData}>
+                  <XAxis dataKey="label" stroke={AXIS} fontSize={12} />
+                  <YAxis stroke={AXIS} fontSize={12} domain={[0, 10]} />
+                  <Tooltip contentStyle={GRID_TOOLTIP} />
+                  <Bar dataKey="average" name="Average readiness" fill="#38bdf8" radius={[2, 2, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

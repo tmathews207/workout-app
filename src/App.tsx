@@ -14,6 +14,7 @@ import ActivityLibrary from './pages/library/ActivityLibrary'
 import SleepTrends from './pages/sleep/SleepTrends'
 import WeightTrends from './pages/weight/WeightTrends'
 import NutritionTrends from './pages/nutrition/NutritionTrends'
+import ReadinessTrends from './pages/readiness/ReadinessTrends'
 import Progress from './pages/progress/Progress'
 import ModalityTracker from './pages/modalities/ModalityTracker'
 import Dashboard from './pages/dashboard/Dashboard'
@@ -32,6 +33,7 @@ const TRACKING_LINKS = [
   { to: '/sleep/trends', label: 'Sleep Trends' },
   { to: '/weight/trends', label: 'Weight Trends' },
   { to: '/nutrition/trends', label: 'Nutrition Trends' },
+  { to: '/readiness/trends', label: 'Readiness Trends' },
   { to: '/progress', label: 'Progress' },
   { to: '/modalities', label: 'Modalities' },
 ]
@@ -183,6 +185,7 @@ export default function App() {
           <Route path="/sleep/trends" element={<RequireAuth><SleepTrends /></RequireAuth>} />
           <Route path="/weight/trends" element={<RequireAuth><WeightTrends /></RequireAuth>} />
           <Route path="/nutrition/trends" element={<RequireAuth><NutritionTrends /></RequireAuth>} />
+          <Route path="/readiness/trends" element={<RequireAuth><ReadinessTrends /></RequireAuth>} />
           <Route path="/progress" element={<RequireAuth><Progress /></RequireAuth>} />
           <Route path="/modalities" element={<RequireAuth><ModalityTracker /></RequireAuth>} />
           <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />

@@ -1,19 +1,23 @@
 import { useQuery } from '@tanstack/react-query'
-import { format, subDays } from 'date-fns'
+import { format } from 'date-fns'
 import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
+import { DateWindowNav } from '../../components/DateWindowNav'
+import { useDateWindow } from '../../lib/useDateWindow'
 import { fruitTotal, milkTotal, vegetableTotal, waterTotal } from '../../lib/nutritionTotals'
 import type { NutritionLog } from '../../types/database'
 
-const DAYS = 14
-
-function useNutritionTrend() {
+function useNutritionTrend(startStr: string, endStr: string) {
   return useQuery({
-    queryKey: ['nutrition_trend', DAYS],
+    queryKey: ['nutrition_trend', startStr, endStr],
     queryFn: async () => {
-      const since = format(subDays(new Date(), DAYS - 1), 'yyyy-MM-dd')
-      const { data, error } = await supabase.from('nutrition_logs').select('*').gte('log_date', since).order('log_date')
+      const { data, error } = await supabase
+        .from('nutrition_logs')
+        .select('*')
+        .gte('log_date', startStr)
+        .lte('log_date', endStr)
+        .order('log_date')
       if (error) throw error
       return (data ?? []) as NutritionLog[]
     },
@@ -21,7 +25,8 @@ function useNutritionTrend() {
 }
 
 export default function NutritionTrends() {
-  const { data, isLoading } = useNutritionTrend()
+  const window = useDateWindow()
+  const { data, isLoading } = useNutritionTrend(window.startStr, window.endStr)
 
   const chartData = (data ?? []).map((log) => ({
     label: format(new Date(log.log_date), 'M/d'),
@@ -32,7 +37,14 @@ export default function NutritionTrends() {
   }))
 
   return (
-    <PageShell title="Nutrition Trends" description={`Daily intake, last ${DAYS} days.`}>
+    <PageShell title="Nutrition Trends" description="Daily intake.">
+      <DateWindowNav
+        startDate={window.startDate}
+        endDate={window.endDate}
+        isCurrent={window.isCurrent}
+        onPrev={window.prev}
+        onNext={window.next}
+      />
       {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
       {!isLoading && chartData.length === 0 && <p className="text-sm text-slate-400">No nutrition entries yet.</p>}
 
