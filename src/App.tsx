@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { NavLink, Route, Routes, useLocation } from 'react-router-dom'
 import Home from './pages/Home'
 import Login from './pages/Login'
@@ -37,44 +38,80 @@ const TRACKING_LINKS = [
 
 function TrackingMenu() {
   const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const buttonRef = useRef<HTMLButtonElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
   const location = useLocation()
   const isActive = TRACKING_LINKS.some((l) => location.pathname === l.to)
 
+  const toggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      setPos({ top: rect.bottom + 4, left: rect.left })
+    }
+    setOpen((o) => !o)
+  }
+
+  // The button lives inside the horizontally-scrolling nav, which (per CSS
+  // rules) clips vertical overflow too once overflow-x is set — so the
+  // dropdown panel is rendered via a portal, positioned in fixed/viewport
+  // coordinates, and closed on outside click / scroll / resize instead of
+  // relying on normal DOM containment.
+  useEffect(() => {
+    if (!open) return
+    const close = (e: Event) => {
+      const target = e.target as Node
+      if (buttonRef.current?.contains(target) || menuRef.current?.contains(target)) return
+      setOpen(false)
+    }
+    document.addEventListener('mousedown', close)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('resize', close)
+    return () => {
+      document.removeEventListener('mousedown', close)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [open])
+
   return (
-    <div
-      className="relative"
-      onBlur={(e) => {
-        if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false)
-      }}
-    >
+    <>
       <button
+        ref={buttonRef}
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm ${
           isActive ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:text-slate-200'
         }`}
       >
         Tracking ▾
       </button>
-      {open && (
-        <div className="absolute left-0 top-full z-20 mt-1 min-w-[10rem] rounded-md border border-slate-800 bg-slate-900 py-1 shadow-lg">
-          {TRACKING_LINKS.map((l) => (
-            <NavLink
-              key={l.to}
-              to={l.to}
-              onClick={() => setOpen(false)}
-              className={({ isActive: linkActive }) =>
-                `block whitespace-nowrap px-3 py-1.5 text-sm ${
-                  linkActive ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-                }`
-              }
-            >
-              {l.label}
-            </NavLink>
-          ))}
-        </div>
-      )}
-    </div>
+      {open &&
+        pos &&
+        createPortal(
+          <div
+            ref={menuRef}
+            className="fixed z-50 min-w-[10rem] rounded-md border border-slate-800 bg-slate-900 py-1 shadow-lg"
+            style={{ top: pos.top, left: pos.left }}
+          >
+            {TRACKING_LINKS.map((l) => (
+              <NavLink
+                key={l.to}
+                to={l.to}
+                onClick={() => setOpen(false)}
+                className={({ isActive: linkActive }) =>
+                  `block whitespace-nowrap px-3 py-1.5 text-sm ${
+                    linkActive ? 'bg-slate-800 text-slate-100' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                  }`
+                }
+              >
+                {l.label}
+              </NavLink>
+            ))}
+          </div>,
+          document.body,
+        )}
+    </>
   )
 }
 
