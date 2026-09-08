@@ -119,10 +119,30 @@ function TrackingMenu() {
 
 function Nav() {
   const { session } = useAuth()
+  const navRef = useRef<HTMLElement>(null)
+
+  // Published as a CSS var so other sticky elements (e.g. the rest timer)
+  // can dock directly below the nav without hardcoding its height, which
+  // varies with the iOS safe-area inset.
+  useEffect(() => {
+    const el = navRef.current
+    if (!el) return
+    const update = () => document.documentElement.style.setProperty('--nav-height', `${el.getBoundingClientRect().height}px`)
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    window.addEventListener('resize', update)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', update)
+    }
+  }, [session])
+
   if (!session) return null
 
   return (
     <nav
+      ref={navRef}
       className="sticky top-0 z-10 flex items-center gap-1 overflow-x-auto border-b border-slate-800 bg-slate-950/95 px-2 py-2 backdrop-blur"
       style={{ paddingTop: 'calc(env(safe-area-inset-top) + 0.5rem)' }}
     >

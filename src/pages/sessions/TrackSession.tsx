@@ -7,7 +7,9 @@ import { PageShell } from '../../components/PageShell'
 import { RatingScale } from '../../components/RatingScale'
 import { DateNav } from '../../components/DateNav'
 import { MoveSessionDate } from '../../components/MoveSessionDate'
+import { RestTimerBanner } from '../../components/RestTimerBanner'
 import { useLogDate } from '../../lib/useLogDate'
+import { useRestTimer } from '../../lib/useRestTimer'
 import { SetDetailsFields, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
 import type { ActualSet, Activity, ActivityType, Environment, Phase, PlannedSet, Session, SessionActivity, SessionPhase } from '../../types/database'
 
@@ -132,6 +134,7 @@ function ActualSetEditor({
   setNumber,
   planned,
   actual,
+  onSetSaved,
 }: {
   sessionActivityId: string
   activityType: ActivityType
@@ -139,6 +142,7 @@ function ActualSetEditor({
   setNumber: number
   planned: PlannedSet
   actual: ActualSet | undefined
+  onSetSaved?: (restSeconds: number | undefined) => void
 }) {
   const queryClient = useQueryClient()
   const [details, setDetails] = useState<Details>(() =>
@@ -147,18 +151,23 @@ function ActualSetEditor({
 
   const mutation = useMutation({
     mutationFn: async () => {
+      const payload = detailsToPayload(details)
       const { error } = await supabase.from('actual_sets').upsert(
         {
           planned_set_id: planned.id,
           session_activity_id: sessionActivityId,
           set_number: setNumber,
-          details: detailsToPayload(details),
+          details: payload,
         },
         { onConflict: 'session_activity_id,set_number' },
       )
       if (error) throw error
+      return payload
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['track_session'] }),
+    onSuccess: (payload) => {
+      queryClient.invalidateQueries({ queryKey: ['track_session'] })
+      onSetSaved?.(typeof payload.rest_sec === 'number' ? payload.rest_sec : undefined)
+    },
   })
 
   return (
@@ -237,6 +246,7 @@ function FinishSessionForm({ sessionId }: { sessionId: string }) {
 export default function TrackSession() {
   const { date, setDate, today } = useLogDate()
   const { data: session, isLoading } = useSessionForDate(date)
+  const restTimer = useRestTimer()
 
   if (isLoading) return <PageShell title="Track session">Loading…</PageShell>
 
@@ -277,6 +287,7 @@ export default function TrackSession() {
         queryKeyPrefixes={['plan_session', 'track_session']}
         onMoved={setDate}
       />
+      <RestTimerBanner timer={restTimer} />
       <div className="space-y-8">
         {session.session_phases.map((phase) => (
           <div key={phase.id}>
@@ -298,6 +309,7 @@ export default function TrackSession() {
                         setNumber={planned.set_number}
                         planned={planned}
                         actual={sa.actual_sets.find((a) => a.set_number === planned.set_number)}
+                        onSetSaved={(restSeconds) => restTimer.start(restSeconds ?? 0)}
                       />
                     ))}
                     {sa.planned_sets.length === 0 && <p className="text-sm text-slate-500">No planned sets for this activity.</p>}
