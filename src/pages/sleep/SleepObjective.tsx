@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -9,6 +9,7 @@ import { PageShell } from '../../components/PageShell'
 import { formatHHMM, parseHHMM } from '../../lib/format'
 import { DateNav } from '../../components/DateNav'
 import { useLogDate } from '../../lib/useLogDate'
+import { SplitTimeField } from '../../components/SplitTimeField'
 
 // Numeric fields are kept as strings at the form layer (native number
 // inputs hand back strings) and converted right before the write — avoids
@@ -57,7 +58,7 @@ export default function SleepObjective() {
     }
   }, [isLoading, log, navigate, date, today])
 
-  const { register, handleSubmit, formState } = useForm<FormValues>({
+  const { register, control, handleSubmit, formState } = useForm<FormValues>({
     resolver: zodResolver(schema),
     values: log
       ? {
@@ -108,21 +109,23 @@ export default function SleepObjective() {
           <span className="mb-1 block text-sm font-medium text-slate-200">Woke up</span>
           <input type="time" {...register('wake_time')} className="w-full rounded-md bg-slate-800 px-3 py-2" />
         </label>
-        <label className="block">
-          <span className="mb-1 block text-sm font-medium text-slate-200">Total sleep (hh:mm)</span>
-          <input
-            placeholder="7:30"
-            {...register('total_hours_slept')}
-            className="w-full rounded-md bg-slate-800 px-3 py-2"
+        <div>
+          <Controller
+            name="total_hours_slept"
+            control={control}
+            render={({ field }) => (
+              <SplitTimeField label="Total sleep (hh:mm)" firstLabel="hh" value={field.value} onChange={field.onChange} />
+            )}
           />
           {formState.errors.total_hours_slept && (
             <p className="mt-1 text-xs text-red-400">{formState.errors.total_hours_slept.message}</p>
           )}
-        </label>
+        </div>
         <label className="block">
           <span className="mb-1 block text-sm font-medium text-slate-200">Wearable sleep score</span>
           <input
             type="number"
+            inputMode="numeric"
             {...register('wearable_sleep_score')}
             className="w-full rounded-md bg-slate-800 px-3 py-2"
           />
@@ -131,6 +134,7 @@ export default function SleepObjective() {
           <span className="mb-1 block text-sm font-medium text-slate-200">Temperature (°F)</span>
           <input
             type="number"
+            inputMode="decimal"
             step="0.1"
             {...register('temperature_f')}
             className="w-full rounded-md bg-slate-800 px-3 py-2"
@@ -140,6 +144,7 @@ export default function SleepObjective() {
           <span className="mb-1 block text-sm font-medium text-slate-200">Humidity (%)</span>
           <input
             type="number"
+            inputMode="decimal"
             step="0.1"
             {...register('humidity_pct')}
             className="w-full rounded-md bg-slate-800 px-3 py-2"

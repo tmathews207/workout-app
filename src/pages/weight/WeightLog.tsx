@@ -102,6 +102,7 @@ export default function WeightLog() {
           <span className="mb-1 block text-sm font-medium text-slate-200">Weight (lbs)</span>
           <input
             type="number"
+            inputMode="decimal"
             step="0.1"
             {...register('weight_lbs')}
             className="w-full rounded-md bg-slate-800 px-3 py-2"

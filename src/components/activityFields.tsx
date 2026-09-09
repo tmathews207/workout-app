@@ -1,4 +1,5 @@
 import { formatMMSS, parseMMSS } from '../lib/format'
+import { SplitTimeField } from './SplitTimeField'
 import type { ActivityType } from '../types/database'
 
 export type Details = Record<string, string | number | boolean | undefined>
@@ -17,38 +18,71 @@ export function NumberField({
   value,
   step,
   onChange,
+  stepButtons,
 }: {
   label: string
   value: string
   step?: string
   onChange: (v: string) => void
+  // Adds -/+ buttons flanking the input, sized to `step` — for fields that
+  // come pre-filled from the plan and usually just need a small nudge.
+  stepButtons?: boolean
 }) {
+  const input = (
+    <input
+      type="number"
+      inputMode="decimal"
+      step={step ?? '1'}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`w-full rounded-md bg-slate-800 px-3 py-2 ${stepButtons ? 'text-center' : ''}`}
+    />
+  )
+
+  if (!stepButtons) {
+    return (
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-slate-200">{label}</span>
+        {input}
+      </label>
+    )
+  }
+
+  const stepAmount = step ? Number(step) : 1
+  const decimals = (String(stepAmount).split('.')[1] ?? '').length
+  const bump = (delta: number) => {
+    const next = Math.max(0, (Number(value) || 0) + delta)
+    onChange(String(Number(next.toFixed(decimals))))
+  }
+
   return (
     <label className="block">
       <span className="mb-1 block text-sm font-medium text-slate-200">{label}</span>
-      <input
-        type="number"
-        step={step ?? '1'}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md bg-slate-800 px-3 py-2"
-      />
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => bump(-stepAmount)}
+          aria-label="Decrease"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-800 text-slate-300"
+        >
+          −
+        </button>
+        {input}
+        <button
+          type="button"
+          onClick={() => bump(stepAmount)}
+          aria-label="Increase"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-800 text-slate-300"
+        >
+          +
+        </button>
+      </div>
     </label>
   )
 }
 
 export function MMSSField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-sm font-medium text-slate-200">{label} (mm:ss)</span>
-      <input
-        placeholder="1:30"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-md bg-slate-800 px-3 py-2"
-      />
-    </label>
-  )
+  return <SplitTimeField label={`${label} (mm:ss)`} value={value} onChange={onChange} firstLabel="mm" />
 }
 
 export function RadioField({
@@ -161,6 +195,7 @@ export function SetDetailsFields({
   setDetail,
   hasMachineSetting,
   mode = 'plan',
+  hideFields,
 }: {
   type: ActivityType
   details: Details
@@ -169,8 +204,12 @@ export function SetDetailsFields({
   // 'plan' labels these as targets to hit; 'actual' labels them as what
   // happened, since the tracking screen reuses this same field set.
   mode?: 'plan' | 'actual'
+  // Field keys to skip rendering entirely — used when tracking a set whose
+  // plan left a field blank, so there's nothing to fill in for it.
+  hideFields?: string[]
 }) {
   const str = (k: string) => (details[k] as string) ?? ''
+  const hidden = (key: string) => hideFields?.includes(key) ?? false
   // Every "target"-prefixed label below goes through this, so tracking a
   // set says "Weight (lbs)" / "RPE" instead of "Target weight (lbs)" /
   // "Target RPE" — the number is the same field either way.
@@ -194,6 +233,7 @@ export function SetDetailsFields({
       <NumberField
         label={mode === 'actual' ? 'Weight (lbs)' : 'Target weight (lbs)'}
         step="0.5"
+        stepButtons={mode === 'actual'}
         value={str('target_weight_lbs')}
         onChange={(v) => setDetail('target_weight_lbs', v)}
       />
@@ -211,7 +251,7 @@ export function SetDetailsFields({
   // range like "4-6" is a real target) needs both fields.
   const repsFields =
     mode === 'actual' ? (
-      <NumberField label="Reps" value={str('target_reps_max')} onChange={(v) => setDetail('target_reps_max', v)} />
+      <NumberField label="Reps" stepButtons value={str('target_reps_max')} onChange={(v) => setDetail('target_reps_max', v)} />
     ) : (
       <div className="grid grid-cols-2 gap-3">
         <NumberField label="Target reps (min)" value={str('target_reps_min')} onChange={(v) => setDetail('target_reps_min', v)} />
@@ -232,19 +272,25 @@ export function SetDetailsFields({
           {machineSettingField}
         </>
       )
-    case 'strength':
+    case 'strength': {
+      const showBarSpeed = !hidden('target_bar_speed_mps')
+      const showTempo = !hidden('tempo')
       return (
         <>
           {setKind}
-          <div className="grid grid-cols-2 gap-3">
-            <NumberField
-              label={L('Target bar speed (m/s)')}
-              step="0.1"
-              value={str('target_bar_speed_mps')}
-              onChange={(v) => setDetail('target_bar_speed_mps', v)}
-            />
-            <TextField label="Tempo (#-#-#-#)" value={str('tempo')} onChange={(v) => setDetail('tempo', v)} />
-          </div>
+          {(showBarSpeed || showTempo) && (
+            <div className={`grid gap-3 ${showBarSpeed && showTempo ? 'grid-cols-2' : 'grid-cols-1'}`}>
+              {showBarSpeed && (
+                <NumberField
+                  label={L('Target bar speed (m/s)')}
+                  step="0.1"
+                  value={str('target_bar_speed_mps')}
+                  onChange={(v) => setDetail('target_bar_speed_mps', v)}
+                />
+              )}
+              {showTempo && <TextField label="Tempo (#-#-#-#)" value={str('tempo')} onChange={(v) => setDetail('tempo', v)} />}
+            </div>
+          )}
           {repsFields}
           {weightWithBodyweight}
           {rpeOrRir}
@@ -252,6 +298,7 @@ export function SetDetailsFields({
           {machineSettingField}
         </>
       )
+    }
     case 'power':
       return (
         <>
@@ -289,6 +336,7 @@ export function SetDetailsFields({
           <NumberField
             label={mode === 'actual' ? 'Weight (lbs)' : 'Target weight (lbs)'}
             step="0.5"
+            stepButtons={mode === 'actual'}
             value={str('target_weight_lbs')}
             onChange={(v) => setDetail('target_weight_lbs', v)}
           />

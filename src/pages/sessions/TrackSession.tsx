@@ -92,6 +92,7 @@ function StartSessionForm({ sessionId }: { sessionId: string }) {
           <span className="mb-1 block text-sm font-medium text-slate-200">Temperature (°F)</span>
           <input
             type="number"
+            inputMode="decimal"
             step="0.1"
             value={temperatureF}
             onChange={(e) => setTemperatureF(e.target.value)}
@@ -102,6 +103,7 @@ function StartSessionForm({ sessionId }: { sessionId: string }) {
           <span className="mb-1 block text-sm font-medium text-slate-200">Humidity (%)</span>
           <input
             type="number"
+            inputMode="decimal"
             step="0.1"
             value={humidityPct}
             onChange={(e) => setHumidityPct(e.target.value)}
@@ -149,6 +151,14 @@ function ActualSetEditor({
     payloadToDisplay((actual?.details ?? planned.details) as Record<string, unknown>),
   )
 
+  // A target left blank in the plan (tempo, bar speed) has nothing to
+  // record while tracking, so don't show it.
+  const plannedDetails = planned.details as Record<string, unknown>
+  const hideFields = [
+    plannedDetails.tempo ? null : 'tempo',
+    plannedDetails.target_bar_speed_mps ? null : 'target_bar_speed_mps',
+  ].filter((k): k is string => k !== null)
+
   const mutation = useMutation({
     mutationFn: async () => {
       const payload = detailsToPayload(details)
@@ -172,26 +182,90 @@ function ActualSetEditor({
 
   return (
     <div className={`rounded-md border p-3 ${actual ? 'border-emerald-800 bg-emerald-950/20' : 'border-slate-800 bg-slate-900/50'}`}>
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2">
         <span className="text-sm font-medium text-slate-300">
           Set {setNumber} {actual && <span className="text-emerald-400">— recorded</span>}
         </span>
-        <button
-          type="button"
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending}
-          className="rounded bg-sky-500 px-2 py-1 text-xs font-medium text-white disabled:opacity-40"
-        >
-          {mutation.isPending ? 'Saving…' : actual ? 'Update' : 'Save'}
-        </button>
       </div>
       <SetDetailsFields
         type={activityType}
         details={details}
         hasMachineSetting={hasMachineSetting}
         mode="actual"
+        hideFields={hideFields}
         setDetail={(k, v) => setDetails((d) => ({ ...d, [k]: v }))}
       />
+      <button
+        type="button"
+        onClick={() => mutation.mutate()}
+        disabled={mutation.isPending}
+        className="mt-4 w-full rounded-md bg-sky-500 py-2.5 text-sm font-medium text-white disabled:opacity-40"
+      >
+        {mutation.isPending ? 'Saving…' : actual ? 'Update' : 'Save'}
+      </button>
+    </div>
+  )
+}
+
+// Shows one planned set at a time (rather than the whole list stacked), so
+// a set with several fields still fits on one screen without scrolling —
+// Prev/Next below step through the activity's sets.
+function SetCarousel({
+  sessionActivityId,
+  activityType,
+  hasMachineSetting,
+  plannedSets,
+  actualSets,
+  onSetSaved,
+}: {
+  sessionActivityId: string
+  activityType: ActivityType
+  hasMachineSetting?: boolean
+  plannedSets: PlannedSet[]
+  actualSets: ActualSet[]
+  onSetSaved: (restSeconds: number | undefined) => void
+}) {
+  const [index, setIndex] = useState(0)
+  const clampedIndex = Math.min(index, plannedSets.length - 1)
+  const planned = plannedSets[clampedIndex]
+
+  if (!planned) return <p className="text-sm text-slate-500">No planned sets for this activity.</p>
+
+  return (
+    <div>
+      <ActualSetEditor
+        key={planned.id}
+        sessionActivityId={sessionActivityId}
+        activityType={activityType}
+        hasMachineSetting={hasMachineSetting}
+        setNumber={planned.set_number}
+        planned={planned}
+        actual={actualSets.find((a) => a.set_number === planned.set_number)}
+        onSetSaved={onSetSaved}
+      />
+      {plannedSets.length > 1 && (
+        <div className="mt-3 flex items-center justify-between">
+          <button
+            type="button"
+            disabled={clampedIndex === 0}
+            onClick={() => setIndex(clampedIndex - 1)}
+            className="rounded-md bg-slate-800 px-3 py-1.5 text-sm text-slate-200 disabled:opacity-30"
+          >
+            ← Previous
+          </button>
+          <span className="text-xs text-slate-500">
+            Set {clampedIndex + 1} of {plannedSets.length}
+          </span>
+          <button
+            type="button"
+            disabled={clampedIndex === plannedSets.length - 1}
+            onClick={() => setIndex(clampedIndex + 1)}
+            className="rounded-md bg-slate-800 px-3 py-1.5 text-sm text-slate-200 disabled:opacity-30"
+          >
+            Next →
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -299,21 +373,14 @@ export default function TrackSession() {
                     <div className="font-medium">{sa.activities.name}</div>
                     <div className="text-xs uppercase tracking-wide text-slate-500">{sa.activities.type}</div>
                   </div>
-                  <div className="space-y-2">
-                    {sa.planned_sets.map((planned) => (
-                      <ActualSetEditor
-                        key={planned.id}
-                        sessionActivityId={sa.id}
-                        activityType={sa.activities.type}
-                        hasMachineSetting={Boolean((sa.activities.details as Record<string, unknown>)?.has_machine_setting)}
-                        setNumber={planned.set_number}
-                        planned={planned}
-                        actual={sa.actual_sets.find((a) => a.set_number === planned.set_number)}
-                        onSetSaved={(restSeconds) => restTimer.start(restSeconds ?? 0)}
-                      />
-                    ))}
-                    {sa.planned_sets.length === 0 && <p className="text-sm text-slate-500">No planned sets for this activity.</p>}
-                  </div>
+                  <SetCarousel
+                    sessionActivityId={sa.id}
+                    activityType={sa.activities.type}
+                    hasMachineSetting={Boolean((sa.activities.details as Record<string, unknown>)?.has_machine_setting)}
+                    plannedSets={sa.planned_sets}
+                    actualSets={sa.actual_sets}
+                    onSetSaved={(restSeconds) => restTimer.start(restSeconds ?? 0)}
+                  />
                 </div>
               ))}
               {phase.session_activities.length === 0 && <p className="text-sm text-slate-500">Nothing planned for this phase.</p>}
