@@ -17,12 +17,19 @@ export function SplitTimeField({
 }) {
   const [first, second] = value.split(':')
 
+  // Pass keystrokes straight through unpadded — padding the second box back
+  // to "00" on every change (as this used to) meant backspacing it just
+  // snapped right back to "00", making the zeros impossible to delete.
+  // parseMMSS/parseHHMM treat a missing or single-digit half as 0-prefixed
+  // already, and the saved value gets re-formatted with zero-padding the
+  // next time it's loaded, so this is only a cosmetic difference while
+  // actively typing.
   const emit = (newFirst: string, newSecond: string) => {
     if (!newFirst && !newSecond) {
       onChange('')
       return
     }
-    onChange(`${newFirst || '0'}:${(newSecond || '0').padStart(2, '0')}`)
+    onChange(`${newFirst}:${newSecond}`)
   }
 
   return (
