@@ -274,9 +274,12 @@ export default function PlanSession() {
                             details: (sa.planned_sets[sa.planned_sets.length - 1]?.details ?? {}) as Record<string, unknown>,
                           })
                         }
-                        className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm text-slate-200"
+                        disabled={addSetMutation.isPending}
+                        className="mt-2 rounded-md bg-slate-800 px-3 py-1.5 text-sm text-slate-200 disabled:opacity-40"
                       >
-                        + Add set
+                        {sa.planned_sets.length === 0
+                          ? '+ Add set'
+                          : `+ Repeat set ${sa.planned_sets.length} (same weight, reps, RPE…)`}
                       </button>
                     </div>
                   ))}

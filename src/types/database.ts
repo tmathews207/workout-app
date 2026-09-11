@@ -75,8 +75,10 @@ export interface AnaerobicDetails {
 }
 
 export interface AerobicDetails {
-  distance_miles?: number
-  target_pace?: string // mm:ss per mile
+  distance_value?: number
+  distance_unit?: 'miles' | 'meters'
+  duration_sec?: number
+  target_pace_sec?: number // seconds per mile (or per the recorded unit)
   weight_lbs?: number
   target_heart_rate?: number
   target_cadence?: number

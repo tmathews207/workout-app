@@ -15,6 +15,41 @@ import type { ActualSet, Activity, ActivityType, Environment, Phase, PlannedSet,
 
 const PHASE_LABEL: Record<Phase, string> = { preparatory: 'Preparatory', training: 'Training', recovery: 'Recovery' }
 
+function setKindOf(p: PlannedSet): string | undefined {
+  return (p.details as Record<string, unknown> | undefined)?.set_kind as string | undefined
+}
+
+// "Set 5 of 6" lumps warm-up and work sets together, which makes it hard to
+// tell how many real work sets are left. When every set in the activity is
+// tagged warm-up/work (strength/power/anaerobic types only — aerobic,
+// stretch, and mobility never set this), split the counter between them
+// instead; otherwise fall back to the flat count.
+function buildSetProgressLabel(plannedSets: PlannedSet[], current: PlannedSet): string {
+  const allTagged = plannedSets.every((p) => setKindOf(p) === 'warm-up' || setKindOf(p) === 'work')
+  if (!allTagged) {
+    const idx = plannedSets.findIndex((p) => p.id === current.id)
+    return `Set ${idx + 1} of ${plannedSets.length}`
+  }
+
+  const warmups = plannedSets.filter((p) => setKindOf(p) === 'warm-up')
+  const workSets = plannedSets.filter((p) => setKindOf(p) === 'work')
+
+  if (warmups.length === 0) {
+    const pos = workSets.findIndex((p) => p.id === current.id) + 1
+    return `Work set ${pos} of ${workSets.length}`
+  }
+  if (workSets.length === 0) {
+    const pos = warmups.findIndex((p) => p.id === current.id) + 1
+    return `Warm-up set ${pos} of ${warmups.length}`
+  }
+  if (setKindOf(current) === 'warm-up') {
+    const pos = warmups.findIndex((p) => p.id === current.id) + 1
+    return `Warm-up set ${pos} of ${warmups.length}, work sets 0 of ${workSets.length}`
+  }
+  const pos = workSets.findIndex((p) => p.id === current.id) + 1
+  return `Warm-up sets ${warmups.length} of ${warmups.length} complete, work set ${pos} of ${workSets.length}`
+}
+
 type SessionActivityFull = SessionActivity & { activities: Activity; planned_sets: PlannedSet[]; actual_sets: ActualSet[] }
 type SessionPhaseFull = SessionPhase & { session_activities: SessionActivityFull[] }
 type SessionFull = Session & { session_phases: SessionPhaseFull[] }
@@ -136,7 +171,10 @@ function ActualSetEditor({
   setNumber,
   planned,
   actual,
+  isLastPlannedSet,
   onSetSaved,
+  onSkipRemaining,
+  skipRemainingPending,
 }: {
   sessionActivityId: string
   activityType: ActivityType
@@ -144,9 +182,16 @@ function ActualSetEditor({
   setNumber: number
   planned: PlannedSet
   actual: ActualSet | undefined
+  isLastPlannedSet: boolean
   onSetSaved?: (restSeconds: number | undefined) => void
+  onSkipRemaining: (note: string) => void
+  skipRemainingPending: boolean
 }) {
   const queryClient = useQueryClient()
+  const actualDetails = actual?.details as Record<string, unknown> | undefined
+  const [skipped, setSkipped] = useState(Boolean(actualDetails?.skipped))
+  const [skipPanelOpen, setSkipPanelOpen] = useState(false)
+  const [skipNote, setSkipNote] = useState(String(actualDetails?.skip_note ?? ''))
   const [details, setDetails] = useState<Details>(() =>
     payloadToDisplay((actual?.details ?? planned.details) as Record<string, unknown>),
   )
@@ -180,6 +225,63 @@ function ActualSetEditor({
     },
   })
 
+  const skipMutation = useMutation({
+    mutationFn: async (note: string) => {
+      const skipDetails: Record<string, unknown> = { skipped: true }
+      if (note.trim()) skipDetails.skip_note = note.trim()
+      const { error } = await supabase.from('actual_sets').upsert(
+        {
+          planned_set_id: planned.id,
+          session_activity_id: sessionActivityId,
+          set_number: setNumber,
+          details: skipDetails,
+        },
+        { onConflict: 'session_activity_id,set_number' },
+      )
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['track_session'] })
+      setSkipped(true)
+      setSkipPanelOpen(false)
+    },
+  })
+
+  const unskipMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('actual_sets')
+        .delete()
+        .eq('session_activity_id', sessionActivityId)
+        .eq('set_number', setNumber)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['track_session'] })
+      setSkipped(false)
+      setSkipNote('')
+    },
+  })
+
+  if (skipped) {
+    return (
+      <div className="rounded-md border border-amber-800 bg-amber-950/20 p-3">
+        <div className="mb-1 flex items-center justify-between">
+          <span className="text-sm font-medium text-amber-400">Set {setNumber} — skipped</span>
+          <button
+            type="button"
+            onClick={() => unskipMutation.mutate()}
+            disabled={unskipMutation.isPending}
+            className="rounded bg-slate-800 px-2 py-1 text-xs text-slate-300 disabled:opacity-40"
+          >
+            Undo
+          </button>
+        </div>
+        {skipNote && <p className="text-sm text-slate-400">{skipNote}</p>}
+      </div>
+    )
+  }
+
   return (
     <div className={`rounded-md border p-3 ${actual ? 'border-emerald-800 bg-emerald-950/20' : 'border-slate-800 bg-slate-900/50'}`}>
       <div className="mb-2">
@@ -203,6 +305,56 @@ function ActualSetEditor({
       >
         {mutation.isPending ? 'Saving…' : actual ? 'Update' : 'Save'}
       </button>
+
+      {!skipPanelOpen ? (
+        <button
+          type="button"
+          onClick={() => setSkipPanelOpen(true)}
+          className="mt-2 w-full rounded-md bg-slate-800 py-2 text-sm text-amber-400"
+        >
+          Skip this set
+        </button>
+      ) : (
+        <div className="mt-2 space-y-2 rounded-md border border-amber-900 bg-amber-950/10 p-3">
+          <label className="block">
+            <span className="mb-1 block text-xs text-slate-400">Note (optional)</span>
+            <textarea
+              rows={2}
+              value={skipNote}
+              onChange={(e) => setSkipNote(e.target.value)}
+              placeholder="e.g. arm pain"
+              className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm"
+            />
+          </label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => skipMutation.mutate(skipNote)}
+              disabled={skipMutation.isPending}
+              className="flex-1 rounded-md bg-amber-600 py-2 text-sm font-medium text-white disabled:opacity-40"
+            >
+              {skipMutation.isPending ? 'Skipping…' : 'Confirm skip'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setSkipPanelOpen(false)}
+              className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-300"
+            >
+              Cancel
+            </button>
+          </div>
+          {!isLastPlannedSet && (
+            <button
+              type="button"
+              onClick={() => onSkipRemaining(skipNote)}
+              disabled={skipRemainingPending}
+              className="w-full rounded-md bg-amber-900/60 py-2 text-sm text-amber-300 disabled:opacity-40"
+            >
+              {skipRemainingPending ? 'Skipping…' : 'Skip all remaining sets'}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -225,9 +377,26 @@ function SetCarousel({
   actualSets: ActualSet[]
   onSetSaved: (restSeconds: number | undefined) => void
 }) {
+  const queryClient = useQueryClient()
   const [index, setIndex] = useState(0)
   const clampedIndex = Math.min(index, plannedSets.length - 1)
   const planned = plannedSets[clampedIndex]
+
+  const skipRemainingMutation = useMutation({
+    mutationFn: async ({ fromIndex, note }: { fromIndex: number; note: string }) => {
+      const skipDetails: Record<string, unknown> = { skipped: true }
+      if (note.trim()) skipDetails.skip_note = note.trim()
+      const rows = plannedSets.slice(fromIndex).map((p) => ({
+        planned_set_id: p.id,
+        session_activity_id: sessionActivityId,
+        set_number: p.set_number,
+        details: skipDetails,
+      }))
+      const { error } = await supabase.from('actual_sets').upsert(rows, { onConflict: 'session_activity_id,set_number' })
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['track_session'] }),
+  })
 
   if (!planned) return <p className="text-sm text-slate-500">No planned sets for this activity.</p>
 
@@ -241,7 +410,10 @@ function SetCarousel({
         setNumber={planned.set_number}
         planned={planned}
         actual={actualSets.find((a) => a.set_number === planned.set_number)}
+        isLastPlannedSet={clampedIndex === plannedSets.length - 1}
         onSetSaved={onSetSaved}
+        onSkipRemaining={(note) => skipRemainingMutation.mutate({ fromIndex: clampedIndex, note })}
+        skipRemainingPending={skipRemainingMutation.isPending}
       />
       {plannedSets.length > 1 && (
         <div className="mt-3 flex items-center justify-between">
@@ -253,9 +425,7 @@ function SetCarousel({
           >
             ← Previous
           </button>
-          <span className="text-xs text-slate-500">
-            Set {clampedIndex + 1} of {plannedSets.length}
-          </span>
+          <span className="text-xs text-slate-500">{buildSetProgressLabel(plannedSets, planned)}</span>
           <button
             type="button"
             disabled={clampedIndex === plannedSets.length - 1}

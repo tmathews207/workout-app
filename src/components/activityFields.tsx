@@ -85,6 +85,51 @@ export function MMSSField({ label, value, onChange }: { label: string; value: st
   return <SplitTimeField label={`${label} (mm:ss)`} value={value} onChange={onChange} firstLabel="mm" />
 }
 
+// A duration (mm:ss display string) adjusted only via -/+ buttons rather
+// than typed — for tracking a rest period that's usually just a small nudge
+// off the planned target rather than a brand new value.
+export function SteppedDurationField({
+  label,
+  value,
+  onChange,
+  stepSeconds = 15,
+}: {
+  label: string
+  value: string
+  onChange: (v: string) => void
+  stepSeconds?: number
+}) {
+  const bump = (delta: number) => {
+    const next = Math.max(0, (parseMMSS(value) ?? 0) + delta)
+    onChange(formatMMSS(next))
+  }
+
+  return (
+    <label className="block">
+      <span className="mb-1 block text-sm font-medium text-slate-200">{label}</span>
+      <div className="flex items-center gap-1">
+        <button
+          type="button"
+          onClick={() => bump(-stepSeconds)}
+          aria-label="Decrease"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-800 text-slate-300"
+        >
+          −
+        </button>
+        <div className="w-full rounded-md bg-slate-800 px-3 py-2 text-center tabular-nums">{value || '0:00'}</div>
+        <button
+          type="button"
+          onClick={() => bump(stepSeconds)}
+          aria-label="Increase"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-800 text-slate-300"
+        >
+          +
+        </button>
+      </div>
+    </label>
+  )
+}
+
 export function RadioField({
   label,
   options,
@@ -218,14 +263,22 @@ export function SetDetailsFields({
   const setKind = (
     <RadioField label="Warm-up or work set" options={['warm-up', 'work']} value={str('set_kind')} onChange={(v) => setDetail('set_kind', v)} />
   )
-  const restField = <MMSSField label="Rest period" value={str('rest_display')} onChange={(v) => setDetail('rest_display', v)} />
+  // In tracking mode, rest is usually just a small nudge off the planned
+  // target, so it's a stepper (15s taps) rather than the two-box mm:ss entry
+  // used when planning (where an arbitrary specific value is more likely).
+  const restField =
+    mode === 'actual' ? (
+      <SteppedDurationField label="Rest period" value={str('rest_display')} onChange={(v) => setDetail('rest_display', v)} stepSeconds={15} />
+    ) : (
+      <MMSSField label="Rest period" value={str('rest_display')} onChange={(v) => setDetail('rest_display', v)} />
+    )
   const machineSettingField = hasMachineSetting ? (
     <NumberField label="Machine setting" value={str('machine_setting')} onChange={(v) => setDetail('machine_setting', v)} />
   ) : null
   const rpeOrRir = (
     <div className="grid grid-cols-2 gap-3">
       <NumberField label={L('Target RPE')} step="0.1" value={str('target_rpe')} onChange={(v) => setDetail('target_rpe', v)} />
-      <NumberField label={L('Target RIR')} value={str('target_rir')} onChange={(v) => setDetail('target_rir', v)} />
+      <NumberField label={L('Target RIR')} stepButtons={mode === 'actual'} value={str('target_rir')} onChange={(v) => setDetail('target_rir', v)} />
     </div>
   )
   const weightWithBodyweight = (
@@ -360,6 +413,7 @@ export function SetDetailsFields({
               onChange={(v) => setDetail('distance_unit', v)}
             />
           </div>
+          <MMSSField label="Duration" value={str('duration_display')} onChange={(v) => setDetail('duration_display', v)} />
           <MMSSField label={L('Target pace')} value={str('target_pace_display')} onChange={(v) => setDetail('target_pace_display', v)} />
           <NumberField label="Weight (lbs)" step="0.5" value={str('weight_lbs')} onChange={(v) => setDetail('weight_lbs', v)} />
           <div className="grid grid-cols-2 gap-3">

@@ -17,6 +17,7 @@ import NutritionTrends from './pages/nutrition/NutritionTrends'
 import ReadinessTrends from './pages/readiness/ReadinessTrends'
 import Progress from './pages/progress/Progress'
 import ModalityTracker from './pages/modalities/ModalityTracker'
+import AerobicSummary from './pages/aerobic/AerobicSummary'
 import Dashboard from './pages/dashboard/Dashboard'
 import Admin from './pages/admin/Admin'
 import { RequireAuth } from './components/RequireAuth'
@@ -36,6 +37,7 @@ const TRACKING_LINKS = [
   { to: '/readiness/trends', label: 'Readiness Trends' },
   { to: '/progress', label: 'Progress' },
   { to: '/modalities', label: 'Modalities' },
+  { to: '/aerobic', label: 'Aerobic Totals' },
 ]
 
 function TrackingMenu() {
@@ -208,6 +210,7 @@ export default function App() {
           <Route path="/readiness/trends" element={<RequireAuth><ReadinessTrends /></RequireAuth>} />
           <Route path="/progress" element={<RequireAuth><Progress /></RequireAuth>} />
           <Route path="/modalities" element={<RequireAuth><ModalityTracker /></RequireAuth>} />
+          <Route path="/aerobic" element={<RequireAuth><AerobicSummary /></RequireAuth>} />
           <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
           <Route path="/admin" element={<RequireAuth><Admin /></RequireAuth>} />
         </Routes>
