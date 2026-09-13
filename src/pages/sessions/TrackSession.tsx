@@ -24,11 +24,11 @@ function setKindOf(p: PlannedSet): string | undefined {
 // tagged warm-up/work (strength/power/anaerobic types only — aerobic,
 // stretch, and mobility never set this), split the counter between them
 // instead; otherwise fall back to the flat count.
-function buildSetProgressLabel(plannedSets: PlannedSet[], current: PlannedSet): string {
+function SetProgressLabel({ plannedSets, current }: { plannedSets: PlannedSet[]; current: PlannedSet }) {
   const allTagged = plannedSets.every((p) => setKindOf(p) === 'warm-up' || setKindOf(p) === 'work')
   if (!allTagged) {
     const idx = plannedSets.findIndex((p) => p.id === current.id)
-    return `Set ${idx + 1} of ${plannedSets.length}`
+    return <span className="text-xs text-slate-500">{`Set ${idx + 1} of ${plannedSets.length}`}</span>
   }
 
   const warmups = plannedSets.filter((p) => setKindOf(p) === 'warm-up')
@@ -36,18 +36,28 @@ function buildSetProgressLabel(plannedSets: PlannedSet[], current: PlannedSet): 
 
   if (warmups.length === 0) {
     const pos = workSets.findIndex((p) => p.id === current.id) + 1
-    return `Work set ${pos} of ${workSets.length}`
+    return <span className="text-xs text-slate-500">{`Work set ${pos} of ${workSets.length}`}</span>
   }
   if (workSets.length === 0) {
     const pos = warmups.findIndex((p) => p.id === current.id) + 1
-    return `Warm-up set ${pos} of ${warmups.length}`
+    return <span className="text-xs text-slate-500">{`Warm-up set ${pos} of ${warmups.length}`}</span>
   }
   if (setKindOf(current) === 'warm-up') {
     const pos = warmups.findIndex((p) => p.id === current.id) + 1
-    return `Warm-up set ${pos} of ${warmups.length}, work sets 0 of ${workSets.length}`
+    return (
+      <span className="text-center text-xs text-slate-500">
+        <span className="block">{`Warm-up set ${pos} of ${warmups.length}`}</span>
+        <span className="block">{`Work sets 0 of ${workSets.length}`}</span>
+      </span>
+    )
   }
   const pos = workSets.findIndex((p) => p.id === current.id) + 1
-  return `Warm-up sets ${warmups.length} of ${warmups.length} complete, work set ${pos} of ${workSets.length}`
+  return (
+    <span className="text-center text-xs text-slate-500">
+      <span className="block">{`Warm-up sets ${warmups.length} of ${warmups.length} complete`}</span>
+      <span className="block">{`Work set ${pos} of ${workSets.length}`}</span>
+    </span>
+  )
 }
 
 type SessionActivityFull = SessionActivity & { activities: Activity; planned_sets: PlannedSet[]; actual_sets: ActualSet[] }
@@ -173,6 +183,7 @@ function ActualSetEditor({
   actual,
   isLastPlannedSet,
   onSetSaved,
+  onAdvance,
   onSkipRemaining,
   skipRemainingPending,
 }: {
@@ -184,6 +195,7 @@ function ActualSetEditor({
   actual: ActualSet | undefined
   isLastPlannedSet: boolean
   onSetSaved?: (restSeconds: number | undefined) => void
+  onAdvance: () => void
   onSkipRemaining: (note: string) => void
   skipRemainingPending: boolean
 }) {
@@ -222,6 +234,7 @@ function ActualSetEditor({
     onSuccess: (payload) => {
       queryClient.invalidateQueries({ queryKey: ['track_session'] })
       onSetSaved?.(typeof payload.rest_sec === 'number' ? payload.rest_sec : undefined)
+      onAdvance()
     },
   })
 
@@ -244,6 +257,7 @@ function ActualSetEditor({
       queryClient.invalidateQueries({ queryKey: ['track_session'] })
       setSkipped(true)
       setSkipPanelOpen(false)
+      onAdvance()
     },
   })
 
@@ -412,11 +426,12 @@ function SetCarousel({
         actual={actualSets.find((a) => a.set_number === planned.set_number)}
         isLastPlannedSet={clampedIndex === plannedSets.length - 1}
         onSetSaved={onSetSaved}
+        onAdvance={() => setIndex((i) => Math.min(i + 1, plannedSets.length - 1))}
         onSkipRemaining={(note) => skipRemainingMutation.mutate({ fromIndex: clampedIndex, note })}
         skipRemainingPending={skipRemainingMutation.isPending}
       />
       {plannedSets.length > 1 && (
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-3 flex items-center justify-between gap-2">
           <button
             type="button"
             disabled={clampedIndex === 0}
@@ -425,7 +440,9 @@ function SetCarousel({
           >
             ← Previous
           </button>
-          <span className="text-xs text-slate-500">{buildSetProgressLabel(plannedSets, planned)}</span>
+          <div className="flex-1 text-center">
+            <SetProgressLabel plannedSets={plannedSets} current={planned} />
+          </div>
           <button
             type="button"
             disabled={clampedIndex === plannedSets.length - 1}

@@ -301,10 +301,17 @@ export function SetDetailsFields({
     </div>
   )
   // A single set has one rep count, not a range — only planning (where a
-  // range like "4-6" is a real target) needs both fields.
+  // range like "4-6" is a real target) needs both fields. Warm-up sets
+  // commonly plan only a minimum (e.g. "at least 8"), so fall back to that
+  // when there's no max — otherwise the planned target shows up blank.
   const repsFields =
     mode === 'actual' ? (
-      <NumberField label="Reps" stepButtons value={str('target_reps_max')} onChange={(v) => setDetail('target_reps_max', v)} />
+      <NumberField
+        label="Reps"
+        stepButtons
+        value={str('target_reps_max') || str('target_reps_min')}
+        onChange={(v) => setDetail('target_reps_max', v)}
+      />
     ) : (
       <div className="grid grid-cols-2 gap-3">
         <NumberField label="Target reps (min)" value={str('target_reps_min')} onChange={(v) => setDetail('target_reps_min', v)} />
