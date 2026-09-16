@@ -272,13 +272,19 @@ export function SetDetailsFields({
     ) : (
       <MMSSField label="Rest period" value={str('rest_display')} onChange={(v) => setDetail('rest_display', v)} />
     )
-  const machineSettingField = hasMachineSetting ? (
+  const machineSettingField = hasMachineSetting && !hidden('machine_setting') ? (
     <NumberField label="Machine setting" value={str('machine_setting')} onChange={(v) => setDetail('machine_setting', v)} />
   ) : null
-  const rpeOrRir = (
-    <div className="grid grid-cols-2 gap-3">
-      <NumberField label={L('Target RPE')} step="0.1" value={str('target_rpe')} onChange={(v) => setDetail('target_rpe', v)} />
-      <NumberField label={L('Target RIR')} stepButtons={mode === 'actual'} value={str('target_rir')} onChange={(v) => setDetail('target_rir', v)} />
+  const rpeField = !hidden('target_rpe') ? (
+    <NumberField key="rpe" label={L('Target RPE')} step="0.1" value={str('target_rpe')} onChange={(v) => setDetail('target_rpe', v)} />
+  ) : null
+  const rirField = !hidden('target_rir') ? (
+    <NumberField key="rir" label={L('Target RIR')} stepButtons={mode === 'actual'} value={str('target_rir')} onChange={(v) => setDetail('target_rir', v)} />
+  ) : null
+  const rpeOrRir = (rpeField || rirField) && (
+    <div className={`grid gap-3 ${rpeField && rirField ? 'grid-cols-2' : 'grid-cols-1'}`}>
+      {rpeField}
+      {rirField}
     </div>
   )
   const weightWithBodyweight = (
@@ -359,20 +365,34 @@ export function SetDetailsFields({
         </>
       )
     }
-    case 'power':
+    case 'power': {
+      const powerFields = [
+        !hidden('target_height_in') && (
+          <NumberField key="h" label={L('Target height (in)')} value={str('target_height_in')} onChange={(v) => setDetail('target_height_in', v)} />
+        ),
+        !hidden('target_speed_mps') && (
+          <NumberField
+            key="s"
+            label={L('Target speed (m/s)')}
+            step="0.1"
+            value={str('target_speed_mps')}
+            onChange={(v) => setDetail('target_speed_mps', v)}
+          />
+        ),
+        !hidden('target_distance_m') && (
+          <NumberField key="d" label={L('Target distance (m)')} value={str('target_distance_m')} onChange={(v) => setDetail('target_distance_m', v)} />
+        ),
+      ].filter(Boolean)
       return (
         <>
           {setKind}
-          <div className="grid grid-cols-3 gap-3">
-            <NumberField label={L('Target height (in)')} value={str('target_height_in')} onChange={(v) => setDetail('target_height_in', v)} />
-            <NumberField
-              label={L('Target speed (m/s)')}
-              step="0.1"
-              value={str('target_speed_mps')}
-              onChange={(v) => setDetail('target_speed_mps', v)}
-            />
-            <NumberField label={L('Target distance (m)')} value={str('target_distance_m')} onChange={(v) => setDetail('target_distance_m', v)} />
-          </div>
+          {powerFields.length > 0 && (
+            <div
+              className={`grid gap-3 ${powerFields.length === 3 ? 'grid-cols-3' : powerFields.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}
+            >
+              {powerFields}
+            </div>
+          )}
           {repsFields}
           {weightWithBodyweight}
           {rpeOrRir}
@@ -380,19 +400,29 @@ export function SetDetailsFields({
           {machineSettingField}
         </>
       )
-    case 'anaerobic':
+    }
+    case 'anaerobic': {
+      const distanceDurationFields = [
+        !hidden('target_distance_m') && (
+          <NumberField key="d" label={L('Target distance (m)')} value={str('target_distance_m')} onChange={(v) => setDetail('target_distance_m', v)} />
+        ),
+        !hidden('target_duration_sec') && (
+          <MMSSField
+            key="t"
+            label={L('Target duration')}
+            value={str('target_duration_display')}
+            onChange={(v) => setDetail('target_duration_display', v)}
+          />
+        ),
+      ].filter(Boolean)
+      const showPace = !hidden('target_pace_sec')
       return (
         <>
           {setKind}
           {repsFields}
-          <div className="grid grid-cols-2 gap-3">
-            <NumberField label={L('Target distance (m)')} value={str('target_distance_m')} onChange={(v) => setDetail('target_distance_m', v)} />
-            <MMSSField
-              label={L('Target duration')}
-              value={str('target_duration_display')}
-              onChange={(v) => setDetail('target_duration_display', v)}
-            />
-          </div>
+          {distanceDurationFields.length > 0 && (
+            <div className={`grid gap-3 ${distanceDurationFields.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>{distanceDurationFields}</div>
+          )}
           <NumberField
             label={mode === 'actual' ? 'Weight (lbs)' : 'Target weight (lbs)'}
             step="0.5"
@@ -401,14 +431,23 @@ export function SetDetailsFields({
             onChange={(v) => setDetail('target_weight_lbs', v)}
           />
           {rpeOrRir}
-          <div className="grid grid-cols-2 gap-3">
-            <MMSSField label={L('Target pace')} value={str('target_pace_display')} onChange={(v) => setDetail('target_pace_display', v)} />
+          <div className={`grid gap-3 ${showPace ? 'grid-cols-2' : 'grid-cols-1'}`}>
+            {showPace && <MMSSField label={L('Target pace')} value={str('target_pace_display')} onChange={(v) => setDetail('target_pace_display', v)} />}
             {restField}
           </div>
           {machineSettingField}
         </>
       )
-    case 'aerobic':
+    }
+    case 'aerobic': {
+      const hrCadenceFields = [
+        !hidden('target_heart_rate') && (
+          <NumberField key="hr" label={L('Target heart rate')} value={str('target_heart_rate')} onChange={(v) => setDetail('target_heart_rate', v)} />
+        ),
+        !hidden('target_cadence') && (
+          <NumberField key="cad" label={L('Target cadence')} value={str('target_cadence')} onChange={(v) => setDetail('target_cadence', v)} />
+        ),
+      ].filter(Boolean)
       return (
         <>
           <div className="grid grid-cols-2 gap-3">
@@ -421,17 +460,49 @@ export function SetDetailsFields({
             />
           </div>
           <MMSSField label="Duration" value={str('duration_display')} onChange={(v) => setDetail('duration_display', v)} />
-          <MMSSField label={L('Target pace')} value={str('target_pace_display')} onChange={(v) => setDetail('target_pace_display', v)} />
-          <NumberField label="Weight (lbs)" step="0.5" value={str('weight_lbs')} onChange={(v) => setDetail('weight_lbs', v)} />
-          <div className="grid grid-cols-2 gap-3">
-            <NumberField label={L('Target heart rate')} value={str('target_heart_rate')} onChange={(v) => setDetail('target_heart_rate', v)} />
-            <NumberField label={L('Target cadence')} value={str('target_cadence')} onChange={(v) => setDetail('target_cadence', v)} />
-          </div>
+          {!hidden('target_pace_sec') && (
+            <MMSSField label={L('Target pace')} value={str('target_pace_display')} onChange={(v) => setDetail('target_pace_display', v)} />
+          )}
+          {!hidden('weight_lbs') && (
+            <NumberField label="Weight (lbs)" step="0.5" value={str('weight_lbs')} onChange={(v) => setDetail('weight_lbs', v)} />
+          )}
+          {hrCadenceFields.length > 0 && (
+            <div className={`grid gap-3 ${hrCadenceFields.length === 2 ? 'grid-cols-2' : 'grid-cols-1'}`}>{hrCadenceFields}</div>
+          )}
           {restField}
           {machineSettingField}
         </>
       )
+    }
   }
+}
+
+// Every field that's an optional "target" annotation rather than a core
+// measured quantity (reps, weight, rest, distance/duration) — hidden from
+// tracking when the plan left it blank, since there's nothing to fill in
+// for a target that was never set. Shared across both planning UIs: which
+// UI created the plan doesn't matter, only what ended up blank in it.
+const OPTIONAL_TARGET_KEYS = [
+  'target_rpe',
+  'target_rir',
+  'target_bar_speed_mps',
+  'tempo',
+  'target_height_in',
+  'target_speed_mps',
+  'target_distance_m',
+  'target_duration_sec',
+  'target_pace_sec',
+  'target_heart_rate',
+  'target_cadence',
+  'machine_setting',
+  'weight_lbs',
+]
+
+export function computeHideFields(plannedDetails: Record<string, unknown>): string[] {
+  return OPTIONAL_TARGET_KEYS.filter((key) => {
+    const value = plannedDetails[key]
+    return value === undefined || value === null || value === ''
+  })
 }
 
 // Converts the *_display mm:ss text fields into seconds, and numeric-looking

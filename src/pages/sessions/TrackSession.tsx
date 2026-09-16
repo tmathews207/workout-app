@@ -10,7 +10,7 @@ import { MoveSessionDate } from '../../components/MoveSessionDate'
 import { RestTimerBanner } from '../../components/RestTimerBanner'
 import { useLogDate } from '../../lib/useLogDate'
 import { useRestTimer } from '../../lib/useRestTimer'
-import { SetDetailsFields, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
+import { SetDetailsFields, computeHideFields, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
 import type { ActualSet, Activity, ActivityType, Environment, Phase, PlannedSet, Session, SessionActivity, SessionPhase } from '../../types/database'
 
 const PHASE_LABEL: Record<Phase, string> = { preparatory: 'Preparatory', training: 'Training', recovery: 'Recovery' }
@@ -359,13 +359,10 @@ function ActualSetEditor({
     payloadToDisplay((actual?.details ?? planned.details) as Record<string, unknown>),
   )
 
-  // A target left blank in the plan (tempo, bar speed) has nothing to
-  // record while tracking, so don't show it.
+  // Any optional target left blank in the plan has nothing to record while
+  // tracking, so don't show it — regardless of which planning UI made it.
   const plannedDetails = planned.details as Record<string, unknown>
-  const hideFields = [
-    plannedDetails.tempo ? null : 'tempo',
-    plannedDetails.target_bar_speed_mps ? null : 'target_bar_speed_mps',
-  ].filter((k): k is string => k !== null)
+  const hideFields = computeHideFields(plannedDetails)
 
   const mutation = useMutation({
     mutationFn: async () => {
