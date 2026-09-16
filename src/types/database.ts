@@ -130,6 +130,7 @@ export interface Session {
   session_fatigue: number | null
   pain_intensity: number | null
   session_focus: number | null
+  session_notes: string | null
   created_at: string
   updated_at: string
 }

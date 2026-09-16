@@ -174,6 +174,157 @@ function StartSessionForm({ sessionId }: { sessionId: string }) {
   )
 }
 
+// StartSessionForm only ever runs once (while status is still 'planned'),
+// after which those fields would otherwise be locked in forever — this is
+// the same form's fields, editable any time from the in-progress/completed
+// view, collapsed by default so it doesn't compete with the sets below.
+function SessionInfoEditor({ session }: { session: Session }) {
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [recovery, setRecovery] = useState<number | undefined>(session.perceived_recovery ?? undefined)
+  const [environment, setEnvironment] = useState<Environment | ''>(session.environment ?? '')
+  const [temperatureF, setTemperatureF] = useState(session.temperature_f != null ? String(session.temperature_f) : '')
+  const [humidityPct, setHumidityPct] = useState(session.humidity_pct != null ? String(session.humidity_pct) : '')
+  const [startTime, setStartTime] = useState(session.start_time ?? '')
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from('sessions')
+        .update({
+          perceived_recovery: recovery ?? null,
+          environment: environment || null,
+          temperature_f: temperatureF ? Number(temperatureF) : null,
+          humidity_pct: humidityPct ? Number(humidityPct) : null,
+          start_time: startTime || null,
+        })
+        .eq('id', session.id)
+      if (error) throw error
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['track_session'] })
+      setOpen(false)
+    },
+  })
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="mb-4 text-xs text-sky-400 hover:underline">
+        Edit session info (recovery, environment, temperature, humidity, start time)
+      </button>
+    )
+  }
+
+  return (
+    <div className="mb-6 space-y-4 rounded-md border border-slate-800 bg-slate-900/50 p-3">
+      <RatingScale max={10} label="Perceived recovery from prior workout" scaleKey="recovery" value={recovery} onChange={setRecovery} />
+
+      <div>
+        <span className="mb-2 block text-sm font-medium text-slate-200">Environment</span>
+        <div className="flex gap-2">
+          {(['indoor', 'outdoor', 'both'] as Environment[]).map((opt) => (
+            <label key={opt} className="flex items-center gap-2 rounded-md bg-slate-800 px-3 py-2 capitalize">
+              <input type="radio" checked={environment === opt} onChange={() => setEnvironment(opt)} />
+              {opt}
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-200">Temperature (°F)</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            value={temperatureF}
+            onChange={(e) => setTemperatureF(e.target.value)}
+            className="w-full rounded-md bg-slate-800 px-3 py-2"
+          />
+        </label>
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-200">Humidity (%)</span>
+          <input
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            value={humidityPct}
+            onChange={(e) => setHumidityPct(e.target.value)}
+            className="w-full rounded-md bg-slate-800 px-3 py-2"
+          />
+        </label>
+      </div>
+
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-slate-200">Start time</span>
+        <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="w-full rounded-md bg-slate-800 px-3 py-2" />
+      </label>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+          className="flex-1 rounded-md bg-sky-500 py-2 text-sm font-medium text-white disabled:opacity-40"
+        >
+          {mutation.isPending ? 'Saving…' : 'Save'}
+        </button>
+        <button type="button" onClick={() => setOpen(false)} className="rounded-md bg-slate-800 px-3 py-2 text-sm text-slate-300">
+          Cancel
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// session_activities.notes already existed in the schema but was never
+// exposed — lets you flag e.g. "knee hurt on the final set" against the
+// specific exercise, not just the session as a whole.
+function ActivityNoteEditor({ sessionActivityId, initialNote }: { sessionActivityId: string; initialNote: string | null }) {
+  const queryClient = useQueryClient()
+  const [open, setOpen] = useState(Boolean(initialNote))
+  const [note, setNote] = useState(initialNote ?? '')
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from('session_activities').update({ notes: note.trim() || null }).eq('id', sessionActivityId)
+      if (error) throw error
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['track_session'] }),
+  })
+
+  if (!open) {
+    return (
+      <button type="button" onClick={() => setOpen(true)} className="mt-3 text-xs text-sky-400 hover:underline">
+        + Add note for this exercise
+      </button>
+    )
+  }
+
+  return (
+    <div className="mt-3 space-y-2">
+      <label className="block">
+        <span className="mb-1 block text-xs text-slate-400">Exercise note (e.g. knee pain on final set)</span>
+        <textarea
+          rows={2}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className="w-full rounded-md bg-slate-800 px-2 py-1.5 text-sm"
+        />
+      </label>
+      <button
+        type="button"
+        onClick={() => mutation.mutate()}
+        disabled={mutation.isPending}
+        className="rounded-md bg-slate-800 px-3 py-1.5 text-xs font-medium text-slate-200 disabled:opacity-40"
+      >
+        {mutation.isPending ? 'Saving…' : 'Save note'}
+      </button>
+    </div>
+  )
+}
+
 function ActualSetEditor({
   sessionActivityId,
   activityType,
@@ -457,24 +608,43 @@ function SetCarousel({
   )
 }
 
-function FinishSessionForm({ sessionId }: { sessionId: string }) {
+interface FinishSessionValues {
+  session_fatigue: number
+  pain_intensity: number
+  session_focus: number
+  session_notes: string
+}
+
+// Shown for both 'in_progress' (first finish) and 'completed' (going back
+// to fix something, e.g. adding where pain was felt after the fact) —
+// re-submitting when already completed just updates the same fields.
+function FinishSessionForm({ sessionId, session }: { sessionId: string; session: Session }) {
   const queryClient = useQueryClient()
-  const { control, handleSubmit, formState } = useForm<{ session_fatigue: number; pain_intensity: number; session_focus: number }>()
+  const { control, register, handleSubmit, formState } = useForm<FinishSessionValues>({
+    values: {
+      session_fatigue: session.session_fatigue ?? (undefined as unknown as number),
+      pain_intensity: session.pain_intensity ?? (undefined as unknown as number),
+      session_focus: session.session_focus ?? (undefined as unknown as number),
+      session_notes: session.session_notes ?? '',
+    },
+  })
 
   const mutation = useMutation({
-    mutationFn: async (values: { session_fatigue: number; pain_intensity: number; session_focus: number }) => {
+    mutationFn: async (values: FinishSessionValues) => {
       const { error } = await supabase.from('sessions').update({ ...values, status: 'completed' }).eq('id', sessionId)
       if (error) throw error
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['track_session'] }),
   })
 
+  const isCompleted = session.status === 'completed'
+
   return (
     <form
       className="mt-8 space-y-6 rounded-lg border border-slate-800 p-4"
       onSubmit={handleSubmit((values) => mutation.mutate(values))}
     >
-      <h2 className="text-lg font-medium text-slate-100">Finish session</h2>
+      <h2 className="text-lg font-medium text-slate-100">{isCompleted ? 'Session summary' : 'Finish session'}</h2>
       <Controller
         name="session_fatigue"
         control={control}
@@ -487,6 +657,15 @@ function FinishSessionForm({ sessionId }: { sessionId: string }) {
         rules={{ required: true }}
         render={({ field }) => <RatingScale max={10} label="Pain intensity" scaleKey="pain_intensity" value={field.value} onChange={field.onChange} />}
       />
+      <label className="block">
+        <span className="mb-1 block text-sm font-medium text-slate-200">Pain / session notes</span>
+        <textarea
+          rows={3}
+          placeholder="Where was the pain? What aggravates it? Anything else worth noting."
+          {...register('session_notes')}
+          className="w-full rounded-md bg-slate-800 px-3 py-2"
+        />
+      </label>
       <Controller
         name="session_focus"
         control={control}
@@ -498,7 +677,7 @@ function FinishSessionForm({ sessionId }: { sessionId: string }) {
         disabled={!formState.isValid || mutation.isPending}
         className="w-full rounded-md bg-sky-500 py-2.5 font-medium text-white disabled:opacity-40"
       >
-        {mutation.isPending ? 'Saving…' : 'Finish session'}
+        {mutation.isPending ? 'Saving…' : isCompleted ? 'Update' : 'Finish session'}
       </button>
     </form>
   )
@@ -548,6 +727,7 @@ export default function TrackSession() {
         queryKeyPrefixes={['plan_session', 'track_session']}
         onMoved={setDate}
       />
+      <SessionInfoEditor session={session} />
       <RestTimerBanner timer={restTimer} />
       <div className="space-y-8">
         {session.session_phases.map((phase) => (
@@ -568,6 +748,7 @@ export default function TrackSession() {
                     actualSets={sa.actual_sets}
                     onSetSaved={(restSeconds) => restTimer.start(restSeconds ?? 0)}
                   />
+                  <ActivityNoteEditor sessionActivityId={sa.id} initialNote={sa.notes} />
                 </div>
               ))}
               {phase.session_activities.length === 0 && <p className="text-sm text-slate-500">Nothing planned for this phase.</p>}
@@ -576,8 +757,7 @@ export default function TrackSession() {
         ))}
       </div>
 
-      {session.status === 'in_progress' && <FinishSessionForm sessionId={session.id} />}
-      {session.status === 'completed' && <p className="mt-8 text-sm text-emerald-400">Session completed.</p>}
+      <FinishSessionForm sessionId={session.id} session={session} />
     </PageShell>
   )
 }
