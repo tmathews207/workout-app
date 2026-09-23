@@ -4,7 +4,7 @@ import { format } from 'date-fns'
 import { supabase } from '../../lib/supabase'
 import { MoveSessionDate } from '../../components/MoveSessionDate'
 import { SetDetailsFields, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
-import type { Activity, ActivityType, Phase, PlannedSet, SessionActivity, SessionPhase } from '../../types/database'
+import type { Activity, ActivityType, Phase, PlannedSet, SessionActivity, SessionPhase, SessionType } from '../../types/database'
 
 const PHASES: Phase[] = ['preparatory', 'training', 'recovery']
 const PHASE_LABEL: Record<Phase, string> = { preparatory: 'Preparatory', training: 'Training', recovery: 'Recovery' }
@@ -12,7 +12,7 @@ const EXERCISE_TYPES: ActivityType[] = ['strength', 'power', 'anaerobic', 'aerob
 
 type SessionActivityFull = SessionActivity & { activities: Activity; planned_sets: PlannedSet[] }
 type SessionPhaseFull = SessionPhase & { session_activities: SessionActivityFull[] }
-type SessionFull = { id: string; session_date: string; session_phases: SessionPhaseFull[] }
+type SessionFull = { id: string; session_date: string; session_type: SessionType; session_phases: SessionPhaseFull[] }
 
 function useSessionForDate(date: string) {
   return useQuery({
@@ -21,7 +21,7 @@ function useSessionForDate(date: string) {
       const { data, error } = await supabase
         .from('sessions')
         .select(
-          `id, session_date,
+          `id, session_date, session_type,
            session_phases(*, session_activities(*, activities(*), planned_sets(*)))`,
         )
         .eq('session_date', date)
@@ -257,13 +257,26 @@ export default function PlanSessionDesktop() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ['plan_session', date] })
 
   const createSessionMutation = useMutation({
-    mutationFn: async () => {
-      const { data: newSession, error } = await supabase.from('sessions').insert({ session_date: date }).select('id').single()
+    mutationFn: async (sessionType: SessionType) => {
+      const { data: newSession, error } = await supabase
+        .from('sessions')
+        .insert({ session_date: date, session_type: sessionType })
+        .select('id')
+        .single()
       if (error) throw error
       const { error: phaseError } = await supabase
         .from('session_phases')
         .insert(PHASES.map((phase, i) => ({ session_id: newSession.id, phase, sort_order: i })))
       if (phaseError) throw phaseError
+    },
+    onSuccess: invalidate,
+  })
+
+  const setSessionTypeMutation = useMutation({
+    mutationFn: async (sessionType: SessionType) => {
+      if (!session) return
+      const { error } = await supabase.from('sessions').update({ session_type: sessionType }).eq('id', session.id)
+      if (error) throw error
     },
     onSuccess: invalidate,
   })
@@ -363,14 +376,24 @@ export default function PlanSessionDesktop() {
       {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
 
       {!isLoading && !session && (
-        <button
-          type="button"
-          onClick={() => createSessionMutation.mutate()}
-          disabled={createSessionMutation.isPending}
-          className="rounded-md bg-sky-500 px-4 py-2 font-medium text-white disabled:opacity-40"
-        >
-          {createSessionMutation.isPending ? 'Creating…' : `Start planning ${date}`}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => createSessionMutation.mutate('standard')}
+            disabled={createSessionMutation.isPending}
+            className="rounded-md bg-sky-500 px-4 py-2 font-medium text-white disabled:opacity-40"
+          >
+            {createSessionMutation.isPending ? 'Creating…' : `Start planning ${date}`}
+          </button>
+          <button
+            type="button"
+            onClick={() => createSessionMutation.mutate('army_prt')}
+            disabled={createSessionMutation.isPending}
+            className="rounded-md bg-slate-800 px-4 py-2 font-medium text-slate-200 disabled:opacity-40"
+          >
+            Mark {date} as Army PRT
+          </button>
+        </div>
       )}
 
       {session && (
@@ -383,7 +406,24 @@ export default function PlanSessionDesktop() {
             onMoved={setDate}
           />
 
-          {PHASES.map((phase) => {
+          {session.session_type === 'army_prt' ? (
+            <div className="rounded-lg border border-slate-800 p-4">
+              <h2 className="mb-1 text-lg font-medium text-slate-100">Army PRT</h2>
+              <p className="text-sm text-slate-400">
+                No exercise planning needed — when you track this session you'll check off which modalities were used
+                and log an aerobic time.
+              </p>
+              <button
+                type="button"
+                onClick={() => setSessionTypeMutation.mutate('standard')}
+                disabled={setSessionTypeMutation.isPending}
+                className="mt-3 text-xs text-sky-400 hover:underline disabled:opacity-40"
+              >
+                Convert to standard planning instead
+              </button>
+            </div>
+          ) : (
+            PHASES.map((phase) => {
             const phaseRow = session.session_phases.find((p) => p.phase === phase)
             const phaseId = phaseRow?.id
             const activities = phaseRow?.session_activities ?? []
@@ -460,8 +500,9 @@ export default function PlanSessionDesktop() {
                   </button>
                 )}
               </div>
-            )
-          })}
+              )
+            })
+          )}
         </div>
       )}
     </div>

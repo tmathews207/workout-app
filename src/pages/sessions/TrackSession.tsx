@@ -10,8 +10,9 @@ import { MoveSessionDate } from '../../components/MoveSessionDate'
 import { RestTimerBanner } from '../../components/RestTimerBanner'
 import { useLogDate } from '../../lib/useLogDate'
 import { useRestTimer } from '../../lib/useRestTimer'
-import { SetDetailsFields, computeHideFields, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
-import type { ActualSet, Activity, ActivityType, Environment, Phase, PlannedSet, Session, SessionActivity, SessionPhase } from '../../types/database'
+import { formatMMSS, parseMMSS } from '../../lib/format'
+import { MMSSField, SetDetailsFields, computeHideFields, detailsToPayload, payloadToDisplay, type Details } from '../../components/activityFields'
+import type { ActualSet, Activity, ActivityType, Environment, Modality, Phase, PlannedSet, Session, SessionActivity, SessionPhase } from '../../types/database'
 
 const PHASE_LABEL: Record<Phase, string> = { preparatory: 'Preparatory', training: 'Training', recovery: 'Recovery' }
 
@@ -605,6 +606,87 @@ function SetCarousel({
   )
 }
 
+// Army PRT: a fixed, externally-run workout with no per-exercise targets
+// worth tracking — just which modalities got touched and how long the
+// aerobic portion ran. Both save immediately on change, same as the
+// nutrition tiles, rather than needing an explicit Save button.
+function useModalities() {
+  return useQuery({
+    queryKey: ['modalities'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('modalities').select('*').order('sort_order')
+      if (error) throw error
+      return data as Modality[]
+    },
+  })
+}
+
+function ArmyPrtTracker({ session }: { session: Session }) {
+  const queryClient = useQueryClient()
+  const { data: modalities } = useModalities()
+  const [selectedIds, setSelectedIds] = useState<string[]>(session.prt_modality_ids ?? [])
+  const [aerobicDisplay, setAerobicDisplay] = useState(formatMMSS(session.prt_aerobic_duration_sec))
+
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ['track_session'] })
+
+  const modalityMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('sessions').update({ prt_modality_ids: ids }).eq('id', session.id)
+      if (error) throw error
+    },
+    onSuccess: invalidate,
+  })
+
+  const durationMutation = useMutation({
+    mutationFn: async (display: string) => {
+      const { error } = await supabase
+        .from('sessions')
+        .update({ prt_aerobic_duration_sec: parseMMSS(display) ?? null })
+        .eq('id', session.id)
+      if (error) throw error
+    },
+    onSuccess: invalidate,
+  })
+
+  const toggle = (id: string) => {
+    const next = selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]
+    setSelectedIds(next)
+    modalityMutation.mutate(next)
+  }
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="mb-3 text-lg font-medium text-slate-100">Modalities used</h2>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {(modalities ?? []).map((m) => (
+            <label
+              key={m.id}
+              className={`flex items-center gap-2 rounded-md border px-3 py-2 ${
+                selectedIds.includes(m.id) ? 'border-emerald-600 bg-emerald-950/20' : 'border-slate-800'
+              }`}
+            >
+              <input type="checkbox" checked={selectedIds.includes(m.id)} onChange={() => toggle(m.id)} />
+              <span className="text-sm text-slate-200">{m.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      <div className="max-w-xs">
+        <MMSSField
+          label="Aerobic time"
+          value={aerobicDisplay}
+          onChange={(v) => {
+            setAerobicDisplay(v)
+            durationMutation.mutate(v)
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 interface FinishSessionValues {
   session_fatigue: number
   pain_intensity: number
@@ -725,34 +807,41 @@ export default function TrackSession() {
         onMoved={setDate}
       />
       <SessionInfoEditor session={session} />
-      <RestTimerBanner timer={restTimer} />
-      <div className="space-y-8">
-        {session.session_phases.map((phase) => (
-          <div key={phase.id}>
-            <h2 className="mb-3 text-lg font-medium text-slate-100">{PHASE_LABEL[phase.phase]}</h2>
-            <div className="space-y-4">
-              {phase.session_activities.map((sa) => (
-                <div key={sa.id} className="rounded-lg border border-slate-800 p-3">
-                  <div className="mb-3">
-                    <div className="font-medium">{sa.activities.name}</div>
-                    <div className="text-xs uppercase tracking-wide text-slate-500">{sa.activities.type}</div>
-                  </div>
-                  <SetCarousel
-                    sessionActivityId={sa.id}
-                    activityType={sa.activities.type}
-                    hasMachineSetting={Boolean((sa.activities.details as Record<string, unknown>)?.has_machine_setting)}
-                    plannedSets={sa.planned_sets}
-                    actualSets={sa.actual_sets}
-                    onSetSaved={(restSeconds) => restTimer.start(restSeconds ?? 0)}
-                  />
-                  <ActivityNoteEditor sessionActivityId={sa.id} initialNote={sa.notes} />
+
+      {session.session_type === 'army_prt' ? (
+        <ArmyPrtTracker session={session} />
+      ) : (
+        <>
+          <RestTimerBanner timer={restTimer} />
+          <div className="space-y-8">
+            {session.session_phases.map((phase) => (
+              <div key={phase.id}>
+                <h2 className="mb-3 text-lg font-medium text-slate-100">{PHASE_LABEL[phase.phase]}</h2>
+                <div className="space-y-4">
+                  {phase.session_activities.map((sa) => (
+                    <div key={sa.id} className="rounded-lg border border-slate-800 p-3">
+                      <div className="mb-3">
+                        <div className="font-medium">{sa.activities.name}</div>
+                        <div className="text-xs uppercase tracking-wide text-slate-500">{sa.activities.type}</div>
+                      </div>
+                      <SetCarousel
+                        sessionActivityId={sa.id}
+                        activityType={sa.activities.type}
+                        hasMachineSetting={Boolean((sa.activities.details as Record<string, unknown>)?.has_machine_setting)}
+                        plannedSets={sa.planned_sets}
+                        actualSets={sa.actual_sets}
+                        onSetSaved={(restSeconds) => restTimer.start(restSeconds ?? 0)}
+                      />
+                      <ActivityNoteEditor sessionActivityId={sa.id} initialNote={sa.notes} />
+                    </div>
+                  ))}
+                  {phase.session_activities.length === 0 && <p className="text-sm text-slate-500">Nothing planned for this phase.</p>}
                 </div>
-              ))}
-              {phase.session_activities.length === 0 && <p className="text-sm text-slate-500">Nothing planned for this phase.</p>}
-            </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        </>
+      )}
 
       <FinishSessionForm sessionId={session.id} session={session} />
     </PageShell>

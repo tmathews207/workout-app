@@ -65,6 +65,19 @@ function useWeeklyAerobicSummary(weekStart: string, weekEnd: string) {
         }
       }
 
+      // Army PRT sessions have no activities at all — just a logged
+      // aerobic duration for the day, no run/row distance to break out.
+      const { data: prtSessions, error: prtError } = await supabase
+        .from('sessions')
+        .select('prt_aerobic_duration_sec')
+        .eq('session_type', 'army_prt')
+        .gte('session_date', weekStart)
+        .lte('session_date', weekEnd)
+      if (prtError) throw prtError
+      for (const s of prtSessions ?? []) {
+        totalDurationSec += Number(s.prt_aerobic_duration_sec) || 0
+      }
+
       return { totalDurationSec, distanceByGroup }
     },
   })

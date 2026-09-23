@@ -7,6 +7,7 @@ export type Laterality = 'unilateral' | 'bilateral' | 'n/a'
 export type SetKind = 'warm-up' | 'work'
 export type Phase = 'preparatory' | 'training' | 'recovery'
 export type SessionStatus = 'planned' | 'in_progress' | 'completed'
+export type SessionType = 'standard' | 'army_prt'
 export type Environment = 'indoor' | 'outdoor' | 'both'
 export type WeighInPeriod = 'morning' | 'evening'
 
@@ -122,6 +123,9 @@ export interface Session {
   id: string
   session_date: string
   status: SessionStatus
+  session_type: SessionType
+  prt_modality_ids: string[]
+  prt_aerobic_duration_sec: number | null
   perceived_recovery: number | null
   environment: Environment | null
   temperature_f: number | null

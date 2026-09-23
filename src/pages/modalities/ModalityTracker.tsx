@@ -4,6 +4,7 @@ import { addWeeks, endOfWeek, format, startOfWeek, subWeeks } from 'date-fns'
 import { Bar, BarChart, Cell, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from 'recharts'
 import { supabase } from '../../lib/supabase'
 import { PageShell } from '../../components/PageShell'
+import { useWeekModalityDays } from '../../lib/useWeekModalityDays'
 import type { Modality } from '../../types/database'
 
 const GOAL_DAYS = 2
@@ -15,53 +16,6 @@ function useModalities() {
       const { data, error } = await supabase.from('modalities').select('*').order('sort_order')
       if (error) throw error
       return data as Modality[]
-    },
-  })
-}
-
-// A modality counts for a day only if a set was actually performed that day
-// (actual_sets present), not merely planned.
-function useWeekModalityDays(weekStart: string, weekEnd: string) {
-  return useQuery({
-    queryKey: ['modality_days', weekStart, weekEnd],
-    queryFn: async () => {
-      const { data: rawData, error } = await supabase
-        .from('sessions')
-        .select(
-          `session_date,
-           session_phases(session_activities(activities(activity_modalities(modality_id)), actual_sets(id)))`,
-        )
-        .gte('session_date', weekStart)
-        .lte('session_date', weekEnd)
-      if (error) throw error
-      // The untyped client can't know activities/activity_modalities are to-one
-      // from this side, so it infers arrays throughout — they're single objects
-      // at runtime (a session_activity has exactly one activity).
-      const data = rawData as unknown as {
-        session_date: string
-        session_phases: {
-          session_activities: {
-            actual_sets: { id: string }[]
-            activities: { activity_modalities: { modality_id: string }[] }
-          }[]
-        }[]
-      }[]
-
-      const daysByModality = new Map<string, Set<string>>()
-      for (const session of data ?? []) {
-        const date = session.session_date as string
-        for (const phase of session.session_phases ?? []) {
-          for (const sa of phase.session_activities ?? []) {
-            if (!sa.actual_sets || sa.actual_sets.length === 0) continue
-            for (const am of sa.activities?.activity_modalities ?? []) {
-              const days = daysByModality.get(am.modality_id) ?? new Set<string>()
-              days.add(date)
-              daysByModality.set(am.modality_id, days)
-            }
-          }
-        }
-      }
-      return daysByModality
     },
   })
 }

@@ -18,6 +18,7 @@ import type { Activity, ActivityType, Modality, NutritionLog } from '../../types
 import { caffeineTotal, fruitTotal, milkTotal, vegetableTotal, waterTotal } from '../../lib/nutritionTotals'
 import { readinessAverage } from '../../lib/readinessTotals'
 import { useDateWindow } from '../../lib/useDateWindow'
+import { useWeekModalityDays } from '../../lib/useWeekModalityDays'
 import { DateWindowNav } from '../../components/DateWindowNav'
 
 const GOAL_DAYS = 2
@@ -125,48 +126,6 @@ function useModalities() {
       const { data, error } = await supabase.from('modalities').select('*').order('sort_order')
       if (error) throw error
       return data as Modality[]
-    },
-  })
-}
-
-function useWeekModalityDays(weekStart: string, weekEnd: string) {
-  return useQuery({
-    queryKey: ['modality_days', weekStart, weekEnd],
-    queryFn: async () => {
-      const { data: rawData, error } = await supabase
-        .from('sessions')
-        .select(
-          `session_date,
-           session_phases(session_activities(activities(activity_modalities(modality_id)), actual_sets(id)))`,
-        )
-        .gte('session_date', weekStart)
-        .lte('session_date', weekEnd)
-      if (error) throw error
-      const data = rawData as unknown as {
-        session_date: string
-        session_phases: {
-          session_activities: {
-            actual_sets: { id: string }[]
-            activities: { activity_modalities: { modality_id: string }[] }
-          }[]
-        }[]
-      }[]
-
-      const daysByModality = new Map<string, Set<string>>()
-      for (const session of data ?? []) {
-        const date = session.session_date as string
-        for (const phase of session.session_phases ?? []) {
-          for (const sa of phase.session_activities ?? []) {
-            if (!sa.actual_sets || sa.actual_sets.length === 0) continue
-            for (const am of sa.activities?.activity_modalities ?? []) {
-              const days = daysByModality.get(am.modality_id) ?? new Set<string>()
-              days.add(date)
-              daysByModality.set(am.modality_id, days)
-            }
-          }
-        }
-      }
-      return daysByModality
     },
   })
 }
